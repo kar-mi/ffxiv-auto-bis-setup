@@ -25,3 +25,5 @@ Thumbs.db
 *.xlsx
 PLAN.md
 CLAUDE.md
+
+*.claude

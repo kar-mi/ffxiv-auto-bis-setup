@@ -9,6 +9,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "nodestone": "^0.3.6"
+    "@xivapi/nodestone": "^0.2.7"
   }
 }

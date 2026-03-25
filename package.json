@@ -1,0 +1,14 @@
+{
+  "name": "ffxiv_gear_setup",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "nodestone": "^0.3.6"
+  }
+}

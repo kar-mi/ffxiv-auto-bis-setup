@@ -30,3 +30,5 @@ PLAN.md
 CLAUDE.md
 
 *.claude
+
+build/*

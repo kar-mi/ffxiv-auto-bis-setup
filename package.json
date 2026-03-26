@@ -3,15 +3,22 @@
   "module": "src/index.ts",
   "type": "module",
   "scripts": {
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "desktop": "electrobun dev",
+    "desktop:build": "electrobun build canary"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "electrobun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@ffxiv-teamcraft/pcap-ffxiv": "1.2.30",
     "@xivapi/nodestone": "^0.2.7"
-  }
+  },
+  "trustedDependencies": [
+    "@ffxiv-teamcraft/dll-inject"
+  ]
 }

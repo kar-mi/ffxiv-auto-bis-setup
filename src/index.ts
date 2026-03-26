@@ -1,7 +1,8 @@
 import { fetchCharacterGear } from "./lodestone.ts";
 import { readCharacter, writeCharacter } from "./storage.ts";
+import type { GearSnapshot } from "./pcap.ts";
 
-const PORT = 3000;
+export let latestPcapGear: GearSnapshot | null = null;
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, {
@@ -39,26 +40,46 @@ async function serveStatic(pathname: string): Promise<Response> {
   return new Response(file);
 }
 
-Bun.serve({
-  port: PORT,
-  async fetch(req) {
-    const { pathname } = new URL(req.url);
+export function startServer(port = 3000): ReturnType<typeof Bun.serve> {
+  const server = Bun.serve({
+    port,
+    async fetch(req) {
+      const { pathname } = new URL(req.url);
 
-    const userMatch = pathname.match(/^\/user\/(\d+)$/);
-    if (userMatch) {
-      const lodestoneId = userMatch[1];
-      try {
-        if (req.method === "GET") return await getUser(lodestoneId);
-        if (req.method === "POST") return await updateUser(lodestoneId);
-        return json({ error: "Method not allowed" }, 405);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        return serverError(message);
+      const userMatch = pathname.match(/^\/user\/(\d+)$/);
+      if (userMatch) {
+        const lodestoneId = userMatch[1];
+        try {
+          if (req.method === "GET") return await getUser(lodestoneId);
+          if (req.method === "POST") return await updateUser(lodestoneId);
+          return json({ error: "Method not allowed" }, 405);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Unknown error";
+          return serverError(message);
+        }
       }
-    }
 
-    return serveStatic(pathname);
-  },
-});
+      if (pathname === "/pcap/gear") {
+        if (req.method === "GET") {
+          if (!latestPcapGear) return notFound("No packet-captured gear available yet");
+          return json(latestPcapGear);
+        }
+        if (req.method === "POST") {
+          latestPcapGear = (await req.json()) as GearSnapshot;
+          return json({ ok: true });
+        }
+        return json({ error: "Method not allowed" }, 405);
+      }
 
-console.log(`Listening on http://localhost:${PORT}`);
+      return serveStatic(pathname);
+    },
+  });
+  console.log(`Listening on http://localhost:${port}`);
+  return server;
+}
+
+// Standalone entry point: bun run src/index.ts
+if (import.meta.main) {
+  const port = Number(process.env["PORT"] ?? 3000);
+  startServer(port);
+}

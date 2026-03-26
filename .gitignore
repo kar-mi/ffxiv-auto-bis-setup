@@ -9,6 +9,9 @@ bun.lockb
 dist/
 out/
 
+# Generated data
+data/
+
 # Environment
 .env
 .env.local

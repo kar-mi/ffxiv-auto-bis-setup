@@ -1,7 +1,10 @@
 {
   "name": "ffxiv_gear_setup",
-  "module": "index.ts",
+  "module": "src/index.ts",
   "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

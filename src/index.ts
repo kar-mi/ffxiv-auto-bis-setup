@@ -32,26 +32,32 @@ async function updateUser(lodestoneId: string): Promise<Response> {
   return json(character);
 }
 
+async function serveStatic(pathname: string): Promise<Response> {
+  const filePath = `public${pathname === "/" ? "/index.html" : pathname}`;
+  const file = Bun.file(filePath);
+  if (!(await file.exists())) return new Response("Not found", { status: 404 });
+  return new Response(file);
+}
+
 Bun.serve({
   port: PORT,
   async fetch(req) {
     const { pathname } = new URL(req.url);
-    const match = pathname.match(/^\/user\/(\d+)$/);
 
-    if (!match) {
-      return notFound("Route not found");
+    const userMatch = pathname.match(/^\/user\/(\d+)$/);
+    if (userMatch) {
+      const lodestoneId = userMatch[1];
+      try {
+        if (req.method === "GET") return await getUser(lodestoneId);
+        if (req.method === "POST") return await updateUser(lodestoneId);
+        return json({ error: "Method not allowed" }, 405);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        return serverError(message);
+      }
     }
 
-    const lodestoneId = match[1];
-
-    try {
-      if (req.method === "GET") return await getUser(lodestoneId);
-      if (req.method === "POST") return await updateUser(lodestoneId);
-      return json({ error: "Method not allowed" }, 405);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return serverError(message);
-    }
+    return serveStatic(pathname);
   },
 });
 

@@ -45,6 +45,7 @@ interface RawCharacter {
 export interface GearItem {
   name: string;
   itemLevel: number;
+  iconUrl: string | null;
   classJobs: string[];
   glamourName: string | null;
   dye: string | null;
@@ -118,7 +119,12 @@ function parseClassJobs(raw: string | undefined): string[] {
   return raw.trim().split(/\s+/);
 }
 
-async function fetchMateriaBySlot(lodestoneId: string): Promise<Record<SlotName, string[]>> {
+interface SlotExtras {
+  materia: string[];
+  iconUrl: string | null;
+}
+
+async function fetchSlotExtras(lodestoneId: string): Promise<Record<SlotName, SlotExtras>> {
   const url = `https://na.finalfantasyxiv.com/lodestone/character/${lodestoneId}/`;
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; ffxiv-gear-setup/1.0)" },
@@ -131,37 +137,42 @@ async function fetchMateriaBySlot(lodestoneId: string): Promise<Record<SlotName,
   const html = await res.text();
   const { document } = parseHTML(html);
 
-  const result = {} as Record<SlotName, string[]>;
+  const result = {} as Record<SlotName, SlotExtras>;
 
   for (const [slot, index] of Object.entries(SLOT_INDICES) as [SlotName, number][]) {
     const container = document.querySelector(`.icon-c--${index}`);
     if (!container) {
-      result[slot] = [];
+      result[slot] = { materia: [], iconUrl: null };
       continue;
     }
 
     const materiaEls = container.querySelectorAll(".db-tooltip__materia__txt");
-    result[slot] = Array.from(materiaEls).map((el) => {
+    const materia = Array.from(materiaEls).map((el) => {
       // innerHTML is e.g. "Savage Might Materia XII<br><span>...</span>"
-      // take only the text before the <br>
       const name = el.innerHTML.split("<br>")[0];
       return stripHtml(name);
     }).filter(Boolean);
+
+    const iconEl = container.querySelector("img.character__item_icon__img");
+    const iconUrl = iconEl?.getAttribute("src") ?? null;
+
+    result[slot] = { materia, iconUrl };
   }
 
   return result;
 }
 
-function parseGearItem(raw: RawGearItem | null, materia: string[]): GearItem | null {
+function parseGearItem(raw: RawGearItem | null, extras: SlotExtras): GearItem | null {
   if (!raw) return null;
 
   return {
     name: stripHtml(raw.Name),
     itemLevel: parseItemLevel(raw.ItemLevel),
+    iconUrl: extras.iconUrl,
     classJobs: parseClassJobs(raw.ClassList),
     glamourName: parseMirageName(raw.MirageName),
     dye: raw.Stain ?? null,
-    materia,
+    materia: extras.materia,
     crafterName: raw.CreatorName ?? null,
   };
 }
@@ -171,9 +182,9 @@ function parseGearItem(raw: RawGearItem | null, materia: string[]): GearItem | n
 const parser = new Character();
 
 export async function fetchCharacterGear(lodestoneId: string): Promise<CharacterGear> {
-  const [raw, materiaBySlot] = await Promise.all([
+  const [raw, extras] = await Promise.all([
     parser.parse({ params: { characterId: lodestoneId } }) as Promise<RawCharacter>,
-    fetchMateriaBySlot(lodestoneId),
+    fetchSlotExtras(lodestoneId),
   ]);
 
   return {
@@ -182,19 +193,19 @@ export async function fetchCharacterGear(lodestoneId: string): Promise<Character
     dc: raw.DC,
     level: raw.Level,
     gear: {
-      mainhand: parseGearItem(raw.Mainhand, materiaBySlot.mainhand),
-      offhand: parseGearItem(raw.Offhand, materiaBySlot.offhand),
-      head: parseGearItem(raw.Head, materiaBySlot.head),
-      body: parseGearItem(raw.Body, materiaBySlot.body),
-      hands: parseGearItem(raw.Hands, materiaBySlot.hands),
-      legs: parseGearItem(raw.Legs, materiaBySlot.legs),
-      feet: parseGearItem(raw.Feet, materiaBySlot.feet),
-      earrings: parseGearItem(raw.Earrings, materiaBySlot.earrings),
-      necklace: parseGearItem(raw.Necklace, materiaBySlot.necklace),
-      bracelets: parseGearItem(raw.Bracelets, materiaBySlot.bracelets),
-      ring1: parseGearItem(raw.Ring1, materiaBySlot.ring1),
-      ring2: parseGearItem(raw.Ring2, materiaBySlot.ring2),
-      soulcrystal: parseGearItem(raw.Soulcrystal, materiaBySlot.soulcrystal),
+      mainhand: parseGearItem(raw.Mainhand, extras.mainhand),
+      offhand: parseGearItem(raw.Offhand, extras.offhand),
+      head: parseGearItem(raw.Head, extras.head),
+      body: parseGearItem(raw.Body, extras.body),
+      hands: parseGearItem(raw.Hands, extras.hands),
+      legs: parseGearItem(raw.Legs, extras.legs),
+      feet: parseGearItem(raw.Feet, extras.feet),
+      earrings: parseGearItem(raw.Earrings, extras.earrings),
+      necklace: parseGearItem(raw.Necklace, extras.necklace),
+      bracelets: parseGearItem(raw.Bracelets, extras.bracelets),
+      ring1: parseGearItem(raw.Ring1, extras.ring1),
+      ring2: parseGearItem(raw.Ring2, extras.ring2),
+      soulcrystal: parseGearItem(raw.Soulcrystal, extras.soulcrystal),
     },
   };
 }

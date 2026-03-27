@@ -13,7 +13,7 @@ console.info  = (...a) => _write("[info] ", a);
 console.warn  = (...a) => _write("[warn] ", a);
 console.error = (...a) => _write("[error] ", a);
 
-import { GearPacketCapture } from "./pcap.ts";
+import { GearPacketCapture } from "./capture.ts";
 import { loadMateriaData } from "./materia-data.ts";
 import { buildMateriaLookup } from "./materia.ts";
 
@@ -47,11 +47,14 @@ process.on("SIGTERM", () => {
   capture.stop().then(() => process.exit(0));
 });
 
-loadMateriaData(projectRoot).then(data => {
-  capture.setMateriaLookup(buildMateriaLookup(data));
-  console.log(`[materia] Loaded ${data.length} entries`);
-  return capture.start(region);
-}).catch(err => {
-  console.warn('[materia] Failed to load materia data, starting without it:', err);
-  void capture.start(region);
-});
+async function startCapture(): Promise<void> {
+  try {
+    const data = await loadMateriaData(projectRoot);
+    capture.setMateriaLookup(buildMateriaLookup(data));
+    console.log(`[materia] Loaded ${data.length} entries`);
+  } catch (err) {
+    console.warn('[materia] Failed to load materia data, starting without it:', err);
+  }
+  await capture.start(region);
+}
+void startCapture();

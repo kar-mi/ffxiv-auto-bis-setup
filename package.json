@@ -1,9 +1,9 @@
 {
   "name": "ffxiv_gear_setup",
-  "module": "src/index.ts",
+  "module": "src/server/index.ts",
   "type": "module",
   "scripts": {
-    "start": "bun run src/index.ts",
+    "start": "bun run src/server/index.ts",
     "desktop": "electrobun dev",
     "desktop:build": "electrobun build canary"
   },

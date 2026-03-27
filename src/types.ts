@@ -39,7 +39,6 @@ export interface EquipmentPiece {
   materias: number[];
   materiaSlots: number;
   canOvermeld: boolean;
-  baseParamModifier: number;
 }
 
 /** A full gear snapshot from the packet sniffer, keyed by canonical SlotName. */

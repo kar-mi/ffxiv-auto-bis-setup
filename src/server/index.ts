@@ -1,5 +1,6 @@
 import path from "path";
-import type { GearSnapshot } from "./types.ts";
+import type { GearSnapshot } from "../types.ts";
+import { fetchItemData } from "../xivapi/item-data.ts";
 
 
 let latestPcapGear: GearSnapshot | null = null;
@@ -51,7 +52,7 @@ async function serveStatic(pathname: string, publicDir: string): Promise<Respons
   return new Response(file);
 }
 
-export function startServer(port = 3000, publicDir = path.join(import.meta.dir, "..", "public")): ReturnType<typeof Bun.serve> {
+export function startServer(port = 3000, publicDir = path.join(import.meta.dir, "..", "..", "public")): ReturnType<typeof Bun.serve> {
   const server = Bun.serve({
     port,
     async fetch(req) {
@@ -78,6 +79,12 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         return json({ ok: true });
       }
 
+      const itemMatch = pathname.match(/^\/item\/(\d+)$/);
+      if (itemMatch && req.method === "GET") {
+        const itemId = Number(itemMatch[1]);
+        return json(await fetchItemData(itemId));
+      }
+
       if (pathname === "/pcap/gear") {
         if (req.method === "GET") {
           const gear = getLatestPcapGear();
@@ -98,7 +105,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
   return server;
 }
 
-// Standalone entry point: bun run src/index.ts
+// Standalone entry point: bun run src/server/index.ts
 if (import.meta.main) {
   const port = Number(process.env["PORT"] ?? 3000);
   startServer(port);

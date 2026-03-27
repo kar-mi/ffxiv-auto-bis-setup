@@ -7,7 +7,17 @@ const logger = {
 logger.info("[app] app.js loaded");
 
 const API_BASE = "http://localhost:3000";
-const XIVAPI_BASE = "https://v2.xivapi.com/api";
+
+// ---- Item data cache ----------------------------------------------------
+
+const itemCache = new Map();
+
+async function fetchItemData(itemId) {
+  if (!itemCache.has(itemId)) {
+    itemCache.set(itemId, fetch(`${API_BASE}/item/${itemId}`).then(r => r.json()));
+  }
+  return itemCache.get(itemId);
+}
 
 const SLOT_LABELS = {
   mainHand:  "Main Hand",
@@ -27,40 +37,6 @@ const SLOT_LABELS = {
 
 const LEFT_SLOTS   = ["mainHand", "head", "chest", "gloves", "legs", "feet"];
 const RIGHT_SLOTS  = ["offHand", "earRings", "necklace", "bracelet", "ring1", "ring2"];
-
-// ---- XIVAPI item cache --------------------------------------------------
-
-const itemCache = new Map();
-
-async function fetchItemData(itemId) {
-  if (itemCache.has(itemId)) return itemCache.get(itemId);
-  const url = `${XIVAPI_BASE}/sheet/Item/${itemId}?fields=Name,Icon,LevelItem`;
-  logger.debug(`[xivapi] GET ${url}`);
-  const promise = fetch(url)
-    .then(res => {
-      logger.debug(`[xivapi] item ${itemId} → HTTP ${res.status}`);
-      return res.ok ? res.json() : null;
-    })
-    .then(data => {
-      if (!data?.fields) {
-        logger.warn(`[xivapi] item ${itemId} — no fields in response`);
-        return { name: `Item #${itemId}`, icon: null, itemLevel: 0 };
-      }
-      const { Name, Icon, LevelItem } = data.fields;
-      const iconPath = Icon?.path_hr1 ?? Icon?.path ?? null;
-      const iconUrl = iconPath ? `${XIVAPI_BASE}/asset/${iconPath}?format=png` : null;
-      logger.debug(`[xivapi] item ${itemId} — Name="${Name}" iconUrl="${iconUrl}"`);
-      const itemLevel = typeof LevelItem === "number" ? LevelItem
-        : typeof LevelItem?.value === "number" ? LevelItem.value : 0;
-      return { name: Name ?? `Item #${itemId}`, icon: iconUrl, itemLevel };
-    })
-    .catch(err => {
-      logger.error(err, `[xivapi] item ${itemId} fetch error`);
-      return { name: `Item #${itemId}`, icon: null, itemLevel: 0 };
-    });
-  itemCache.set(itemId, promise);
-  return promise;
-}
 
 // ---- DOM helpers --------------------------------------------------------
 
@@ -173,9 +149,12 @@ async function loadGear() {
   try {
     const res = await fetch(`${API_BASE}/pcap/gear`);
     logger.debug(`[app] /pcap/gear → HTTP ${res.status}`);
-    const data = await res.json();
-    if (!res.ok) { setStatus(data.error ?? "Failed to load gear", true); return; }
-    snapshot = data;
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setStatus(data?.error ?? "Failed to load gear", true);
+      return;
+    }
+    snapshot = await res.json();
     logger.debug({ slots: Object.keys(snapshot.items ?? {}) }, "[app] snapshot received");
   } catch (err) {
     logger.error(err, "[app] fetch /pcap/gear failed");
@@ -305,7 +284,7 @@ function flushResize() {
       height: resizeState.pendingH,
     }),
     signal: resizeAbort.signal,
-  }).catch(() => {}); // suppress AbortError
+  }).catch((err) => { if (err.name !== "AbortError") console.error("[resize]", err); });
 }
 
 document.addEventListener("pointermove", (e) => {

@@ -1,9 +1,9 @@
 import { EventEmitter } from 'events';
 import type { CaptureInterface, CaptureInterfaceOptions, Message, Region } from '@ffxiv-teamcraft/pcap-ffxiv';
-import { SLOT_NAMES } from './types.ts';
-import type { EquipmentPiece, GearSnapshot, SlotName } from './types.ts';
+import { SLOT_NAMES } from '../types.ts';
+import type { EquipmentPiece, GearSnapshot, SlotName } from '../types.ts';
 import { resolveMateriaItemId, type MateriaLookup } from './materia.ts';
-import { fetchItemData } from './item-data.ts';
+import { fetchItemData } from '../xivapi/item-data.ts'; // only uses canOvermeld + materiaSlots
 
 const ACCEPTED_PACKETS: Message['type'][] = [
   'itemInfo',
@@ -141,7 +141,6 @@ export class GearPacketCapture extends EventEmitter {
           materias,
           materiaSlots,
           canOvermeld,
-          baseParamModifier: 1,
         };
       }));
 

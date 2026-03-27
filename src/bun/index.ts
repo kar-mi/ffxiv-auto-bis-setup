@@ -2,7 +2,7 @@ import { BrowserWindow } from "electrobun/bun";
 import { dlopen, FFIType } from "bun:ffi";
 import path from "path";
 import { existsSync } from "fs";
-import { startServer, setWindowControls } from "../index.ts";
+import { startServer, setWindowControls } from "../server/index.ts";
 import type { GearSnapshot } from "../types.ts";
 
 const SERVER_PORT = Number(process.env["PORT"] ?? 3000);
@@ -71,7 +71,7 @@ const pcapCjsPath = path.join(projectRoot, "dist", "pcap-host.cjs");
 {
   console.log("[pcap] Building pcap-host.cjs...");
   const build = Bun.spawnSync(
-    ["bun", "build", "src/pcap-host.ts",
+    ["bun", "build", "src/pcap/host.ts",
       "--target=node", "--format=cjs",
       `--outfile=${pcapCjsPath}`,
       "--external=@ffxiv-teamcraft/pcap-ffxiv",

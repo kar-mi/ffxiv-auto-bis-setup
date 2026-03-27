@@ -26,30 +26,6 @@ export const SLOT_NAMES: Record<number, SlotName> = {
   13: 'crystal',
 };
 
-// ---- Lodestone types --------------------------------------------------------
-
-/** A single gear item scraped from the Lodestone character page. */
-export interface LodestoneItem {
-  name: string;
-  itemLevel: number;
-  iconUrl: string | null;
-  classJobs: string[];
-  glamourName: string | null;
-  dye: string | null;
-  /** Human-readable materia names scraped from Lodestone HTML, e.g. ["Savage Might Materia XII"]. */
-  materia: string[];
-  crafterName: string | null;
-}
-
-/** Character identity + equipped gear from Lodestone, keyed by canonical SlotName. */
-export interface LodestoneCharacter {
-  name: string;
-  world: string;
-  dc: string;
-  level: number;
-  gear: Partial<Record<SlotName, LodestoneItem | null>>;
-}
-
 // ---- Packet capture types ---------------------------------------------------
 
 /**

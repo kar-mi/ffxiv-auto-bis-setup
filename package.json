@@ -15,8 +15,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@ffxiv-teamcraft/pcap-ffxiv": "1.2.30",
-    "@xivapi/nodestone": "^0.2.7"
+    "@ffxiv-teamcraft/pcap-ffxiv": "1.2.30"
   },
   "trustedDependencies": [
     "@ffxiv-teamcraft/dll-inject"

@@ -11,9 +11,9 @@
         extend: {
           colors: {
             ffxiv: {
-              gold: "#c8a84b",
-              dark: "#0d0d0d",
-              panel: "#1a1a2e",
+              gold:   "#c8a84b",
+              dark:   "#0d0d0d",
+              panel:  "#1a1a2e",
               border: "#2e2e4a",
             },
           },
@@ -27,41 +27,24 @@
   <div class="max-w-3xl mx-auto px-4 py-10">
 
     <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-ffxiv-gold tracking-wide">FFXIV Gear Setup</h1>
-      <p class="text-gray-400 text-sm mt-1">Compare your equipped gear against Best-in-Slot</p>
-    </div>
-
-    <!-- Character lookup -->
-    <div class="flex gap-3 mb-8">
-      <input
-        id="lodestone-id"
-        type="text"
-        placeholder="Lodestone ID (e.g. 31610743)"
-        class="flex-1 bg-ffxiv-panel border border-ffxiv-border rounded px-4 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-ffxiv-gold"
-      />
-      <button
-        id="btn-load"
-        class="px-4 py-2 text-sm rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors"
-      >
-        Load
-      </button>
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-ffxiv-gold tracking-wide">FFXIV Gear Setup</h1>
+        <p class="text-gray-400 text-sm mt-1">Gear captured from the game client</p>
+      </div>
       <button
         id="btn-refresh"
         class="px-4 py-2 text-sm rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors"
       >
-        Refresh from Lodestone
+        Refresh
       </button>
     </div>
 
     <!-- Status message -->
     <p id="status" class="text-sm text-gray-400 mb-6 hidden"></p>
 
-    <!-- Character info -->
-    <div id="character-header" class="hidden mb-6">
-      <h2 id="char-name" class="text-xl font-semibold text-ffxiv-gold"></h2>
-      <p id="char-meta" class="text-sm text-gray-400"></p>
-    </div>
+    <!-- Snapshot timestamp -->
+    <p id="snapshot-meta" class="text-xs text-gray-500 mb-4 hidden"></p>
 
     <!-- Gear list -->
     <div id="gear-list" class="hidden space-y-2"></div>

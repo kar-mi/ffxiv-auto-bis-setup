@@ -1,4 +1,6 @@
+import path from "path";
 import type { GearSnapshot } from "./types.ts";
+
 
 let latestPcapGear: GearSnapshot | null = null;
 
@@ -22,14 +24,14 @@ function notFound(message: string): Response {
 }
 
 
-async function serveStatic(pathname: string): Promise<Response> {
-  const filePath = `public${pathname === "/" ? "/index.html" : pathname}`;
+async function serveStatic(pathname: string, publicDir: string): Promise<Response> {
+  const filePath = path.join(publicDir, pathname === "/" ? "index.html" : pathname);
   const file = Bun.file(filePath);
   if (!(await file.exists())) return new Response("Not found", { status: 404 });
   return new Response(file);
 }
 
-export function startServer(port = 3000): ReturnType<typeof Bun.serve> {
+export function startServer(port = 3000, publicDir = path.join(import.meta.dir, "..", "public")): ReturnType<typeof Bun.serve> {
   const server = Bun.serve({
     port,
     async fetch(req) {
@@ -48,7 +50,7 @@ export function startServer(port = 3000): ReturnType<typeof Bun.serve> {
         return json({ error: "Method not allowed" }, 405);
       }
 
-      return serveStatic(pathname);
+      return serveStatic(pathname, publicDir);
     },
   });
   console.log(`Listening on http://localhost:${port}`);

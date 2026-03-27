@@ -29,7 +29,7 @@ export function fetchItemData(itemId: number): Promise<ItemMasterData> {
 
 async function fetchFromXivapi(itemId: number): Promise<ItemMasterData> {
   try {
-    const url = `${XIVAPI_BASE}/sheet/Item/${itemId}?columns=IsAdvancedMeldingPermitted,MateriaSlotCount`;
+    const url = `${XIVAPI_BASE}/sheet/Item/${itemId}?fields=IsAdvancedMeldingPermitted,MateriaSlotCount'`;
     const res = await fetch(url);
     if (!res.ok) {
       console.warn(`[item-data] XIVAPI ${itemId} returned ${res.status}; defaulting canOvermeld=false`);

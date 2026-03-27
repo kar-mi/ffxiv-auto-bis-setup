@@ -7,7 +7,8 @@ import type { GearSnapshot } from "../types.ts";
 const SERVER_PORT = Number(process.env["PORT"] ?? 3000);
 
 // Run the HTTP server in-process — we're already in Bun
-startServer(SERVER_PORT);
+const projectRoot = findProjectRoot(import.meta.dir);
+startServer(SERVER_PORT, path.join(projectRoot, "public"));
 
 // Open the desktop window
 new BrowserWindow({
@@ -33,8 +34,6 @@ function findProjectRoot(startDir: string): string {
     dir = parent;
   }
 }
-
-const projectRoot = findProjectRoot(import.meta.dir);
 
 // injector.node is compiled for Node.js v22 (ABI 127) — must run under node, not bun.
 // Build pcap-host.ts → dist/pcap-host.cjs (CJS bundle, externals stay in node_modules).

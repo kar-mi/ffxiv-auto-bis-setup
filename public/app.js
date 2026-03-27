@@ -1,19 +1,19 @@
 const API_BASE = "http://localhost:3000";
 
 const SLOT_LABELS = {
-  mainhand:   "Main Hand",
-  offhand:    "Off Hand",
-  head:       "Head",
-  body:       "Body",
-  hands:      "Hands",
-  legs:       "Legs",
-  feet:       "Feet",
-  earrings:   "Earrings",
-  necklace:   "Necklace",
-  bracelets:  "Bracelets",
-  ring1:      "Ring 1",
-  ring2:      "Ring 2",
-  soulcrystal:"Soul Crystal",
+  mainHand:  "Main Hand",
+  offHand:   "Off Hand",
+  head:      "Head",
+  chest:     "Body",
+  gloves:    "Hands",
+  legs:      "Legs",
+  feet:      "Feet",
+  earRings:  "Earrings",
+  necklace:  "Necklace",
+  bracelet:  "Bracelets",
+  ring1:     "Ring 1",
+  ring2:     "Ring 2",
+  crystal:   "Soul Crystal",
 };
 
 // ---- DOM helpers -------------------------------------------------------

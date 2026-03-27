@@ -2,7 +2,7 @@ import { BrowserWindow } from "electrobun/bun";
 import path from "path";
 import { existsSync } from "fs";
 import { startServer } from "../index.ts";
-import type { GearSnapshot } from "../pcap.ts";
+import type { GearSnapshot } from "../types.ts";
 
 const SERVER_PORT = Number(process.env["PORT"] ?? 3000);
 
@@ -99,7 +99,7 @@ function handlePcapMessage(msg: { type: string; data?: GearSnapshot; message?: s
       break;
     case "gearSnapshot": {
       const snapshot = msg.data!;
-      console.log(`[pcap] Gear snapshot: classId=${snapshot.classId} items=${snapshot.items.length}`);
+      console.log(`[pcap] Gear snapshot: classId=${snapshot.classId} items=${Object.keys(snapshot.items).length}`);
       fetch(`http://localhost:${SERVER_PORT}/pcap/gear`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

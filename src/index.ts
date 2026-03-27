@@ -1,6 +1,6 @@
 import { fetchCharacterGear } from "./lodestone.ts";
 import { readCharacter, writeCharacter } from "./storage.ts";
-import type { GearSnapshot } from "./pcap.ts";
+import type { GearSnapshot } from "./types.ts";
 
 export let latestPcapGear: GearSnapshot | null = null;
 

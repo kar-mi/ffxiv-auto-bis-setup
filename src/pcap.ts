@@ -1,5 +1,9 @@
 import { EventEmitter } from 'events';
 import type { CaptureInterface, CaptureInterfaceOptions, Message, Region } from '@ffxiv-teamcraft/pcap-ffxiv';
+import { SLOT_NAMES } from './types.ts';
+import type { EquipmentPiece, GearSnapshot, SlotName } from './types.ts';
+
+export type { EquipmentPiece, GearSnapshot };
 
 const ACCEPTED_PACKETS: Message['type'][] = [
   'itemInfo',
@@ -7,36 +11,6 @@ const ACCEPTED_PACKETS: Message['type'][] = [
   'updateClassInfo',
   'playerSetup',
 ];
-
-const SLOT_NAMES: Record<number, string> = {
-  0: 'mainHand',
-  1: 'offHand',
-  2: 'head',
-  3: 'chest',
-  4: 'gloves',
-  5: 'belt',
-  6: 'legs',
-  7: 'feet',
-  8: 'earRings',
-  9: 'necklace',
-  10: 'bracelet',
-  11: 'ring2',
-  12: 'ring1',
-  13: 'crystal',
-};
-
-export interface GearItem {
-  itemId: number;
-  slot: string;
-  hq: boolean;
-}
-
-export interface GearSnapshot {
-  characterId?: number;
-  classId?: number;
-  items: GearItem[];
-  capturedAt: string;
-}
 
 export interface GearPacketCaptureEvents {
   started: () => void;
@@ -129,18 +103,27 @@ export class GearPacketCapture extends EventEmitter {
     }
 
     if (msg.type === 'containerInfo' && parsed['containerId'] === 1000) {
-      const items: GearItem[] = [];
-      for (const [slot, item] of this.pendingItems) {
+      const items: Partial<Record<SlotName, EquipmentPiece>> = {};
+
+      for (const [slotIndex, item] of this.pendingItems) {
         if (item.itemId === 0) continue;
-        items.push({
-          slot: SLOT_NAMES[slot] ?? `slot_${slot}`,
+        const slotName = SLOT_NAMES[slotIndex];
+        if (!slotName) continue;
+        items[slotName] = {
           itemId: item.itemId,
           hq: item.hq,
-        });
+          // Materia requires itemInfo packet fields `materia[]` + `materiaTiers[]`
+          // and a materia data lookup via resolveMateriaItemId() from materia.ts.
+          // Populated as empty for now — extend when materia data is available.
+          materias: [],
+          materiaSlots: 0,
+          canOvermeld: false,
+          baseParamModifier: 1,
+        };
       }
       this.pendingItems.clear();
 
-      if (items.length > 0) {
+      if (Object.keys(items).length > 0) {
         const snapshot: GearSnapshot = {
           characterId: this.currentCharacterId,
           classId: this.currentClassId,

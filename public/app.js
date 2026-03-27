@@ -1,3 +1,11 @@
+const logger = {
+  debug: (...a) => console.debug(...a),
+  info:  (...a) => console.info(...a),
+  warn:  (...a) => console.warn(...a),
+  error: (...a) => console.error(...a),
+};
+logger.info("[app] app.js loaded");
+
 const API_BASE = "http://localhost:3000";
 const XIVAPI_BASE = "https://v2.xivapi.com/api";
 
@@ -17,12 +25,8 @@ const SLOT_LABELS = {
   crystal:   "Soul Crystal",
 };
 
-const SLOT_ORDER = [
-  "mainHand", "offHand",
-  "head", "chest", "gloves", "legs", "feet",
-  "earRings", "necklace", "bracelet", "ring1", "ring2",
-  "crystal",
-];
+const LEFT_SLOTS   = ["mainHand", "head", "chest", "gloves", "legs", "feet"];
+const RIGHT_SLOTS  = ["offHand", "earRings", "necklace", "bracelet", "ring1", "ring2"];
 
 // ---- XIVAPI item cache --------------------------------------------------
 
@@ -30,17 +34,30 @@ const itemCache = new Map();
 
 async function fetchItemData(itemId) {
   if (itemCache.has(itemId)) return itemCache.get(itemId);
-  const promise = fetch(`${XIVAPI_BASE}/sheet/Item/${itemId}?fields=Name,Icon,LevelItem`)
-    .then(res => (res.ok ? res.json() : null))
+  const url = `${XIVAPI_BASE}/sheet/Item/${itemId}?fields=Name,Icon,LevelItem`;
+  logger.debug(`[xivapi] GET ${url}`);
+  const promise = fetch(url)
+    .then(res => {
+      logger.debug(`[xivapi] item ${itemId} → HTTP ${res.status}`);
+      return res.ok ? res.json() : null;
+    })
     .then(data => {
-      if (!data?.fields) return { name: `Item #${itemId}`, icon: null, itemLevel: 0 };
+      if (!data?.fields) {
+        logger.warn(`[xivapi] item ${itemId} — no fields in response`);
+        return { name: `Item #${itemId}`, icon: null, itemLevel: 0 };
+      }
       const { Name, Icon, LevelItem } = data.fields;
-      const iconUrl = Icon ? `${XIVAPI_BASE}/asset/${Icon}?format=jpg` : null;
+      const iconPath = Icon?.path_hr1 ?? Icon?.path ?? null;
+      const iconUrl = iconPath ? `${XIVAPI_BASE}/asset/${iconPath}?format=png` : null;
+      logger.debug(`[xivapi] item ${itemId} — Name="${Name}" iconUrl="${iconUrl}"`);
       const itemLevel = typeof LevelItem === "number" ? LevelItem
         : typeof LevelItem?.value === "number" ? LevelItem.value : 0;
       return { name: Name ?? `Item #${itemId}`, icon: iconUrl, itemLevel };
     })
-    .catch(() => ({ name: `Item #${itemId}`, icon: null, itemLevel: 0 }));
+    .catch(err => {
+      logger.error(err, `[xivapi] item ${itemId} fetch error`);
+      return { name: `Item #${itemId}`, icon: null, itemLevel: 0 };
+    });
   itemCache.set(itemId, promise);
   return promise;
 }
@@ -60,27 +77,41 @@ function clearStatus() { el("status").classList.add("hidden"); }
 
 // ---- Rendering ----------------------------------------------------------
 
-function renderMateria(materias, itemDataMap) {
-  const filled = materias.filter(id => id !== 0);
-  if (!filled.length) return "";
-  const chips = filled.map(id => {
-    const data = itemDataMap.get(id);
-    const name = data?.name ?? `Materia #${id}`;
-    return `<span class="text-xs bg-ffxiv-border text-ffxiv-gold px-2 py-0.5 rounded">${name}</span>`;
-  }).join("");
-  return `<div class="flex gap-1 flex-wrap mt-1">${chips}</div>`;
+function renderMateria(piece, itemDataMap) {
+  const totalSlots = piece.canOvermeld ? 5 : 2;
+  const circles = Array.from({ length: totalSlots }, (_, i) => {
+    const id = piece.materias[i] ?? 0;
+    const filled = id !== 0;
+    const isOvermeld = i >= 2;
+    const data = filled ? itemDataMap.get(id) : null;
+    const title = data?.name ?? (filled ? `Materia #${id}` : "");
+    const titleAttr = title ? ` title="${title}"` : "";
+    if (!filled) {
+      const borderColor = isOvermeld ? "border-red-800" : "border-blue-800";
+      return `<span${titleAttr} class="w-2.5 h-2.5 rounded-full border ${borderColor} flex-shrink-0 inline-block"></span>`;
+    }
+    const bgColor = isOvermeld ? "bg-red-500" : "bg-blue-400";
+    return `<span${titleAttr} class="w-2.5 h-2.5 rounded-full ${bgColor} flex-shrink-0 inline-block"></span>`;
+  });
+  return `<div class="flex gap-1 items-center mt-1">${circles.join("")}</div>`;
 }
 
 function renderGearItem(slot, piece, itemDataMap) {
   const label = SLOT_LABELS[slot] ?? slot;
+  const isCrystal = slot === "crystal";
 
   if (!piece) {
     return `
-      <div class="flex items-center gap-4 bg-ffxiv-panel border border-ffxiv-border rounded px-4 py-3 opacity-40">
+      <div class="flex items-start gap-2 bg-ffxiv-panel border border-ffxiv-border rounded p-2 opacity-40">
         <div class="w-10 h-10 rounded bg-ffxiv-border flex-shrink-0"></div>
-        <div>
-          <p class="text-xs text-gray-500">${label}</p>
-          <p class="text-sm text-gray-600 italic">Empty</p>
+        <div class="flex-1 min-w-0">
+          <p class="text-[10px] text-gray-500 uppercase tracking-wide leading-none mb-0.5">${label}</p>
+          <p class="text-xs font-medium text-gray-600 truncate italic">Empty</p>
+          <p class="text-[10px] text-ffxiv-gold font-mono mt-0.5 invisible">iLvl 0</p>
+          ${isCrystal ? "" : `<div class="flex gap-1 items-center mt-1 invisible">
+            <span class="w-2.5 h-2.5 rounded-full border border-blue-800 flex-shrink-0 inline-block"></span>
+            <span class="w-2.5 h-2.5 rounded-full border border-blue-800 flex-shrink-0 inline-block"></span>
+          </div>`}
         </div>
       </div>`;
   }
@@ -89,22 +120,19 @@ function renderGearItem(slot, piece, itemDataMap) {
   const name = data?.name ?? `Item #${piece.itemId}`;
   const itemLevel = data?.itemLevel ?? "?";
   const icon = data?.icon
-    ? `<img src="${data.icon}" alt="${name}" class="w-10 h-10 rounded flex-shrink-0" onerror="this.style.display='none'">`
+    ? `<img src="${data.icon}" alt="" class="w-10 h-10 rounded flex-shrink-0 object-cover"
+         onerror="console.warn('[img] failed to load icon for item ${piece.itemId}:', this.src); this.style.display='none'">`
     : `<div class="w-10 h-10 rounded bg-ffxiv-border flex-shrink-0"></div>`;
-  const hq = piece.hq ? ` <span class="text-xs text-ffxiv-gold">HQ</span>` : "";
+  const hq = piece.hq ? ` <span class="text-[10px] text-ffxiv-gold align-middle">HQ</span>` : "";
 
   return `
-    <div class="flex items-start gap-4 bg-ffxiv-panel border border-ffxiv-border rounded px-4 py-3 hover:border-ffxiv-gold transition-colors">
+    <div class="flex items-start gap-2 bg-ffxiv-panel border border-ffxiv-border rounded p-2 hover:border-ffxiv-gold transition-colors">
       ${icon}
       <div class="flex-1 min-w-0">
-        <div class="flex items-baseline justify-between gap-2">
-          <div class="flex items-baseline gap-1 flex-wrap">
-            <p class="text-xs text-gray-500">${label}</p>
-            <p class="text-sm font-medium text-gray-100">${name}${hq}</p>
-          </div>
-          <span class="text-xs text-ffxiv-gold font-mono flex-shrink-0">iLvl ${itemLevel}</span>
-        </div>
-        ${renderMateria(piece.materias ?? [], itemDataMap)}
+        <p class="text-[10px] text-gray-500 uppercase tracking-wide leading-none mb-0.5">${label}</p>
+        <p class="text-xs font-medium text-gray-100 truncate">${name}${hq}</p>
+        <p class="text-[10px] text-ffxiv-gold font-mono mt-0.5">iLvl ${itemLevel}</p>
+        ${isCrystal ? "" : renderMateria(piece, itemDataMap)}
       </div>
     </div>`;
 }
@@ -112,6 +140,7 @@ function renderGearItem(slot, piece, itemDataMap) {
 // ---- Load & render gear -------------------------------------------------
 
 async function loadGear() {
+  logger.debug("[app] loadGear called");
   el("gear-list").classList.add("hidden");
   el("snapshot-meta").classList.add("hidden");
   setStatus("Fetching gear from packet capture...");
@@ -119,10 +148,13 @@ async function loadGear() {
   let snapshot;
   try {
     const res = await fetch(`${API_BASE}/pcap/gear`);
+    logger.debug(`[app] /pcap/gear → HTTP ${res.status}`);
     const data = await res.json();
     if (!res.ok) { setStatus(data.error ?? "Failed to load gear", true); return; }
     snapshot = data;
-  } catch {
+    logger.debug({ slots: Object.keys(snapshot.items ?? {}) }, "[app] snapshot received");
+  } catch (err) {
+    logger.error(err, "[app] fetch /pcap/gear failed");
     setStatus("Could not reach the server — is it running?", true);
     return;
   }
@@ -135,6 +167,7 @@ async function loadGear() {
       if (mid !== 0) allIds.add(mid);
     }
   }
+  logger.debug({ ids: [...allIds] }, `[app] resolving ${allIds.size} item IDs`);
 
   setStatus("Resolving item names...");
   const resolved = await Promise.all([...allIds].map(id => fetchItemData(id).then(d => [id, d])));
@@ -143,9 +176,15 @@ async function loadGear() {
   clearStatus();
 
   const gearList = el("gear-list");
-  gearList.innerHTML = SLOT_ORDER
-    .map(slot => renderGearItem(slot, snapshot.items[slot] ?? null, itemDataMap))
-    .join("");
+  const leftHtml    = LEFT_SLOTS.map(slot  => renderGearItem(slot, snapshot.items[slot] ?? null, itemDataMap)).join("");
+  const rightHtml   = RIGHT_SLOTS.map(slot => renderGearItem(slot, snapshot.items[slot] ?? null, itemDataMap)).join("");
+  const crystalHtml = renderGearItem("crystal", snapshot.items["crystal"] ?? null, itemDataMap);
+  gearList.innerHTML = `
+    <div class="grid gap-3" style="grid-template-columns: minmax(0,1fr) auto minmax(0,1fr)">
+      <div class="space-y-2">${leftHtml}</div>
+      <div class="flex items-center justify-center">${crystalHtml}</div>
+      <div class="space-y-2">${rightHtml}</div>
+    </div>`;
   gearList.classList.remove("hidden");
 
   const meta = el("snapshot-meta");

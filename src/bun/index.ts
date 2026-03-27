@@ -65,7 +65,7 @@ const pcapProc = Bun.spawn(["node", pcapCjsPath], {
   stdout: "pipe",
   stderr: "pipe",
   cwd: projectRoot,
-  env: { ...process.env, PCAP_REGION: "Global", PCAP_DEBUG: "0" },
+  env: { ...process.env, PCAP_REGION: "Global"},
 });
 
 // Read newline-delimited JSON from the host process

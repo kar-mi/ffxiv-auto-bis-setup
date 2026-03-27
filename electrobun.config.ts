@@ -6,7 +6,7 @@ export default {
   },
   build: {
     bun: {
-      entrypoint: "src/bun/index.ts",
+      entrypoint: "src/desktop/index.ts",
     },
   },
   runtime: {

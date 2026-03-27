@@ -99,6 +99,34 @@
           </button>
         </div>
 
+        <!-- BIS comparison controls -->
+        <div id="bis-controls" class="mb-6 flex flex-wrap items-end gap-3">
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] text-gray-500 uppercase tracking-wide">Job</label>
+            <select id="sel-job" class="bg-ffxiv-panel border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold">
+              <option value="">— Select job —</option>
+            </select>
+          </div>
+          <div id="bis-link-wrap" class="flex flex-col gap-1 hidden">
+            <label class="text-[10px] text-gray-500 uppercase tracking-wide">BIS Set</label>
+            <select id="sel-bis-link" class="bg-ffxiv-panel border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold">
+              <option value="">— Select —</option>
+            </select>
+          </div>
+          <div id="bis-set-wrap" class="flex flex-col gap-1 hidden">
+            <label class="text-[10px] text-gray-500 uppercase tracking-wide">Speed Tier</label>
+            <select id="sel-bis-set" class="bg-ffxiv-panel border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold">
+              <option value="">— Select —</option>
+            </select>
+          </div>
+          <button id="btn-compare" class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors hidden">
+            Compare
+          </button>
+          <button id="btn-clear-compare" class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-400 hover:text-gray-200 transition-colors hidden">
+            Clear
+          </button>
+        </div>
+
         <!-- Status message -->
         <p id="status" class="text-sm text-gray-400 mb-6 hidden"></p>
 
@@ -108,6 +136,15 @@
         <!-- Gear list -->
         <div id="gear-list" class="hidden space-y-2"></div>
 
+      </div>
+    </div>
+
+    <!-- Comparison modal -->
+    <div id="compare-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
+      <div class="bg-ffxiv-panel border border-ffxiv-border rounded-xl w-[480px] max-w-[90vw] p-5 relative shadow-xl">
+        <button id="modal-close" class="absolute top-3 right-3 text-gray-500 hover:text-gray-200 text-lg leading-none">&#x2715;</button>
+        <h2 id="modal-slot-title" class="text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4"></h2>
+        <div id="modal-body" class="flex gap-4"></div>
       </div>
     </div>
 

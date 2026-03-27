@@ -374,7 +374,10 @@ async function loadGear() {
     meta.classList.remove("hidden");
   }
 
-  // Re-run comparison if one was active
+  // Auto-populate BIS links from equipped soul crystal
+  await autoDetectJob(currentItemDataMap);
+
+  // Re-run comparison if a BIS URL is already selected
   if (el("sel-bis-link").value) {
     await runComparison();
   }
@@ -384,16 +387,14 @@ async function loadGear() {
 
 async function runComparison() {
   const url = el("sel-bis-link").value;
-  const set = el("sel-bis-set").value || undefined;
   if (!url) return;
 
   setStatus("Comparing gear...");
   let compRes, bisRes;
   try {
-    const setParam = set ? `&set=${encodeURIComponent(set)}` : "";
     [compRes, bisRes] = await Promise.all([
-      fetch(`${API_BASE}/compare?url=${encodeURIComponent(url)}${setParam}`),
-      fetch(`${API_BASE}/bis?url=${encodeURIComponent(url)}${setParam}`),
+      fetch(`${API_BASE}/compare?url=${encodeURIComponent(url)}`),
+      fetch(`${API_BASE}/bis?url=${encodeURIComponent(url)}`),
     ]);
   } catch (err) {
     logger.error(err, "[app] comparison fetch failed");
@@ -431,36 +432,29 @@ async function runComparison() {
 
 // ---- BIS selector -------------------------------------------------------
 
-function populateJobDropdown() {
-  const sel = el("sel-job");
-  for (const { label } of JOBS) {
-    const opt = document.createElement("option");
-    opt.value = label;
-    opt.textContent = label;
-    sel.appendChild(opt);
-  }
-}
+async function autoDetectJob(itemDataMap) {
+  const crystal = currentSnapshot?.items?.crystal;
+  if (!crystal) return;
 
-async function onJobChange() {
-  const label = el("sel-job").value;
-  const job = JOBS.find(j => j.label === label);
+  const data = itemDataMap.get(crystal.itemId);
+  if (!data?.name) return;
 
-  // Reset downstream
+  const jobLabel = crystalJobName(data.name);
+  const job = JOBS.find(j => j.label.toLowerCase() === jobLabel.toLowerCase());
+  if (!job) return;
+
+  // Reset BIS link dropdown
   el("bis-link-wrap").classList.add("hidden");
-  el("bis-set-wrap").classList.add("hidden");
   el("btn-compare").classList.add("hidden");
   el("sel-bis-link").innerHTML = `<option value="">— Select —</option>`;
-  el("sel-bis-set").innerHTML  = `<option value="">— Select —</option>`;
-
-  if (!job) return;
 
   setStatus(`Loading BIS sets for ${job.label}...`);
   let links;
   try {
     const res = await fetch(`${API_BASE}/balance/${job.role}/${job.job}`);
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setStatus(data?.error ?? "Failed to load BIS links", true);
+      const data2 = await res.json().catch(() => null);
+      setStatus(data2?.error ?? "Failed to load BIS links", true);
       return;
     }
     links = await res.json();
@@ -471,10 +465,7 @@ async function onJobChange() {
   }
 
   clearStatus();
-  if (!links.length) {
-    setStatus(`No BIS sets found for ${job.label}`, true);
-    return;
-  }
+  if (!links.length) return;
 
   const sel = el("sel-bis-link");
   for (const { label: linkLabel, url } of links) {
@@ -485,39 +476,15 @@ async function onJobChange() {
   }
   el("bis-link-wrap").classList.remove("hidden");
 
-  // Auto-select first if only one
+  // Auto-select and show Compare if only one option
   if (links.length === 1) {
     sel.value = links[0].url;
-    await onBisLinkChange();
+    onBisLinkChange();
   }
 }
 
-async function onBisLinkChange() {
-  const url = el("sel-bis-link").value;
-  el("bis-set-wrap").classList.add("hidden");
-  el("btn-compare").classList.add("hidden");
-  el("sel-bis-set").innerHTML = `<option value="">— Select —</option>`;
-
-  if (!url) return;
-
-  let sets;
-  try {
-    const res = await fetch(`${API_BASE}/bis/sets?url=${encodeURIComponent(url)}`);
-    if (!res.ok) { sets = []; } else { sets = await res.json(); }
-  } catch { sets = []; }
-
-  if (sets.length > 1) {
-    const sel = el("sel-bis-set");
-    for (const name of sets) {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      sel.appendChild(opt);
-    }
-    el("bis-set-wrap").classList.remove("hidden");
-  }
-
-  el("btn-compare").classList.remove("hidden");
+function onBisLinkChange() {
+  el("btn-compare").classList[el("sel-bis-link").value ? "remove" : "add"]("hidden");
 }
 
 function clearComparison() {
@@ -530,9 +497,6 @@ function clearComparison() {
 
 // ---- Init ---------------------------------------------------------------
 
-populateJobDropdown();
-
-el("sel-job").addEventListener("change", onJobChange);
 el("sel-bis-link").addEventListener("change", onBisLinkChange);
 el("btn-compare").addEventListener("click", runComparison);
 el("btn-clear-compare").addEventListener("click", clearComparison);
@@ -660,3 +624,10 @@ document.addEventListener("pointerup", () => {
 });
 
 loadGear();
+
+// Auto-refresh when the pcap process delivers a new snapshot
+const eventSource = new EventSource(`${API_BASE}/events`);
+eventSource.addEventListener("gear", () => {
+  logger.info("[app] gear event received — refreshing");
+  loadGear();
+});

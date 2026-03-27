@@ -9,12 +9,27 @@ import { fetchBisLinks } from "../bis/balance.ts";
 let latestPcapGear: GearSnapshot | null = null;
 const bisCache = new Map<string, BisGearSet>();
 
+const sseEncoder = new TextEncoder();
+const sseClients = new Set<ReadableStreamDefaultController<Uint8Array>>();
+
+function pushSseEvent(event: string): void {
+  const msg = sseEncoder.encode(`event: ${event}\ndata: {}\n\n`);
+  for (const ctrl of sseClients) {
+    try {
+      ctrl.enqueue(msg);
+    } catch {
+      sseClients.delete(ctrl);
+    }
+  }
+}
+
 export function getLatestPcapGear(): GearSnapshot | null {
   return latestPcapGear;
 }
 
 export function setLatestPcapGear(snapshot: GearSnapshot): void {
   latestPcapGear = snapshot;
+  pushSseEvent("gear");
 }
 
 interface WindowControls {
@@ -242,6 +257,31 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         } catch (e) {
           return json({ error: String(e) }, 502);
         }
+      }
+
+      // GET /events
+      //   Server-Sent Events stream. Pushes a "gear" event whenever a new
+      //   GearSnapshot is stored via POST /pcap/gear.
+      if (pathname === "/events" && req.method === "GET") {
+        let ctrl!: ReadableStreamDefaultController<Uint8Array>;
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            ctrl = controller;
+            sseClients.add(controller);
+            controller.enqueue(sseEncoder.encode(": connected\n\n"));
+          },
+          cancel() {
+            sseClients.delete(ctrl);
+          },
+        });
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
       }
 
       return serveStatic(pathname, publicDir);

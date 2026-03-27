@@ -85,7 +85,7 @@ function renderMateria(piece, itemDataMap) {
     const isOvermeld = i >= 2;
     const data = filled ? itemDataMap.get(id) : null;
     const title = data?.name ?? (filled ? `Materia #${id}` : "");
-    const titleAttr = title ? ` title="${title}"` : "";
+    const titleAttr = title ? ` data-tooltip="${title}"` : "";
     if (!filled) {
       const borderColor = isOvermeld ? "border-red-800" : "border-blue-800";
       return `<span${titleAttr} class="w-2.5 h-2.5 rounded-full border ${borderColor} flex-shrink-0 inline-block"></span>`;
@@ -96,9 +96,33 @@ function renderMateria(piece, itemDataMap) {
   return `<div class="flex gap-1 items-center mt-1">${circles.join("")}</div>`;
 }
 
+function crystalJobName(name) {
+  return name.replace(/^Soul of (?:the )?/i, "");
+}
+
+function renderCrystal(piece, itemDataMap) {
+  if (!piece) {
+    return `
+      <div class="w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 opacity-40">
+        <div class="w-10 h-10 rounded bg-ffxiv-border"></div>
+        <p class="text-[9px] text-gray-600 italic">None</p>
+      </div>`;
+  }
+  const data = itemDataMap.get(piece.itemId);
+  const jobName = data?.name ? crystalJobName(data.name) : `Item #${piece.itemId}`;
+  const icon = data?.icon
+    ? `<img src="${data.icon}" alt="" class="w-10 h-10 rounded object-cover"
+         onerror="console.warn('[img] failed to load crystal icon:', this.src); this.style.display='none'">`
+    : `<div class="w-10 h-10 rounded bg-ffxiv-border"></div>`;
+  return `
+    <div class="w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 p-2 hover:border-ffxiv-gold transition-colors">
+      ${icon}
+      <p class="text-[9px] text-gray-300 font-medium text-center leading-tight">${jobName}</p>
+    </div>`;
+}
+
 function renderGearItem(slot, piece, itemDataMap) {
   const label = SLOT_LABELS[slot] ?? slot;
-  const isCrystal = slot === "crystal";
 
   if (!piece) {
     return `
@@ -108,10 +132,10 @@ function renderGearItem(slot, piece, itemDataMap) {
           <p class="text-[10px] text-gray-500 uppercase tracking-wide leading-none mb-0.5">${label}</p>
           <p class="text-xs font-medium text-gray-600 truncate italic">Empty</p>
           <p class="text-[10px] text-ffxiv-gold font-mono mt-0.5 invisible">iLvl 0</p>
-          ${isCrystal ? "" : `<div class="flex gap-1 items-center mt-1 invisible">
+          <div class="flex gap-1 items-center mt-1 invisible">
             <span class="w-2.5 h-2.5 rounded-full border border-blue-800 flex-shrink-0 inline-block"></span>
             <span class="w-2.5 h-2.5 rounded-full border border-blue-800 flex-shrink-0 inline-block"></span>
-          </div>`}
+          </div>
         </div>
       </div>`;
   }
@@ -132,7 +156,7 @@ function renderGearItem(slot, piece, itemDataMap) {
         <p class="text-[10px] text-gray-500 uppercase tracking-wide leading-none mb-0.5">${label}</p>
         <p class="text-xs font-medium text-gray-100 truncate">${name}${hq}</p>
         <p class="text-[10px] text-ffxiv-gold font-mono mt-0.5">iLvl ${itemLevel}</p>
-        ${isCrystal ? "" : renderMateria(piece, itemDataMap)}
+        ${renderMateria(piece, itemDataMap)}
       </div>
     </div>`;
 }
@@ -178,12 +202,12 @@ async function loadGear() {
   const gearList = el("gear-list");
   const leftHtml    = LEFT_SLOTS.map(slot  => renderGearItem(slot, snapshot.items[slot] ?? null, itemDataMap)).join("");
   const rightHtml   = RIGHT_SLOTS.map(slot => renderGearItem(slot, snapshot.items[slot] ?? null, itemDataMap)).join("");
-  const crystalHtml = renderGearItem("crystal", snapshot.items["crystal"] ?? null, itemDataMap);
+  const crystalHtml = renderCrystal(snapshot.items["crystal"] ?? null, itemDataMap);
   gearList.innerHTML = `
-    <div class="grid gap-3" style="grid-template-columns: minmax(0,1fr) auto minmax(0,1fr)">
-      <div class="space-y-2">${leftHtml}</div>
-      <div class="flex items-center justify-center">${crystalHtml}</div>
-      <div class="space-y-2">${rightHtml}</div>
+    <div class="flex gap-3 items-start">
+      <div class="flex-1 min-w-0 space-y-2">${leftHtml}</div>
+      <div class="flex-shrink-0 flex items-center justify-center self-center">${crystalHtml}</div>
+      <div class="flex-1 min-w-0 space-y-2">${rightHtml}</div>
     </div>`;
   gearList.classList.remove("hidden");
 

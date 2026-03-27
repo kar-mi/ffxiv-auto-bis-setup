@@ -1,10 +1,30 @@
 import { BrowserWindow } from "electrobun/bun";
+import { dlopen, FFIType } from "bun:ffi";
 import path from "path";
 import { existsSync } from "fs";
 import { startServer, setWindowControls } from "../index.ts";
 import type { GearSnapshot } from "../types.ts";
 
 const SERVER_PORT = Number(process.env["PORT"] ?? 3000);
+
+// Enable per-monitor DPI awareness before any window is created.
+// bun.exe ships without a DPI-aware manifest, so without this call Windows
+// renders the WebView at 96 DPI and then upscales the result — causing blur.
+try {
+  const shcore = dlopen("shcore", {
+    SetProcessDpiAwareness: { args: [FFIType.i32], returns: FFIType.i32 },
+  });
+  const PROCESS_PER_MONITOR_DPI_AWARE = 2;
+  const hr = shcore.symbols.SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+  if (hr === 0) {
+    console.log("[dpi] per-monitor DPI awareness enabled");
+  } else {
+    // E_ACCESSDENIED (0x80070005) means already set — not an error.
+    console.log(`[dpi] SetProcessDpiAwareness result: 0x${(hr >>> 0).toString(16)}`);
+  }
+} catch (e) {
+  console.warn("[dpi] could not set DPI awareness:", e);
+}
 
 // Run the HTTP server in-process — we're already in Bun
 const projectRoot = findProjectRoot(import.meta.dir);

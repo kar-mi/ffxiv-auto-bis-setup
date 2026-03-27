@@ -69,6 +69,7 @@ let currentItemDataMap = new Map(); // item data for equipped gear
 let comparisonData = null;       // GearsetComparison | null
 let currentBisSet = null;        // BisGearSet | null
 let bisItemDataMap = new Map();  // item data for BIS items
+let currentJobKey = null;        // "role/job" slug, to avoid re-fetching BIS links on same job
 
 // ---- DOM helpers --------------------------------------------------------
 
@@ -443,6 +444,11 @@ async function autoDetectJob(itemDataMap) {
   const job = JOBS.find(j => j.label.toLowerCase() === jobLabel.toLowerCase());
   if (!job) return;
 
+  // Same job as last time — dropdown is already populated, leave selection intact
+  const jobKey = `${job.role}/${job.job}`;
+  if (jobKey === currentJobKey) return;
+  currentJobKey = jobKey;
+
   // Reset BIS link dropdown
   el("bis-link-wrap").classList.add("hidden");
   el("btn-compare").classList.add("hidden");
@@ -491,7 +497,11 @@ function clearComparison() {
   comparisonData = null;
   currentBisSet  = null;
   bisItemDataMap = new Map();
+  currentJobKey  = null;
+  el("bis-link-wrap").classList.add("hidden");
+  el("btn-compare").classList.add("hidden");
   el("btn-clear-compare").classList.add("hidden");
+  el("sel-bis-link").innerHTML = `<option value="">— Select —</option>`;
   renderGear();
 }
 
@@ -624,10 +634,3 @@ document.addEventListener("pointerup", () => {
 });
 
 loadGear();
-
-// Auto-refresh when the pcap process delivers a new snapshot
-const eventSource = new EventSource(`${API_BASE}/events`);
-eventSource.addEventListener("gear", () => {
-  logger.info("[app] gear event received — refreshing");
-  loadGear();
-});

@@ -2,6 +2,8 @@ import { EventEmitter } from 'events';
 import type { CaptureInterface, CaptureInterfaceOptions, Message, Region } from '@ffxiv-teamcraft/pcap-ffxiv';
 import { SLOT_NAMES } from './types.ts';
 import type { EquipmentPiece, GearSnapshot, SlotName } from './types.ts';
+import { resolveMateriaItemId } from './materia.ts';
+import type { MateriaEntry } from './materia.ts';
 
 export type { EquipmentPiece, GearSnapshot };
 
@@ -24,11 +26,23 @@ export declare interface GearPacketCapture {
   emit<K extends keyof GearPacketCaptureEvents>(event: K, ...args: Parameters<GearPacketCaptureEvents[K]>): boolean;
 }
 
+interface PendingItem {
+  itemId: number;
+  hq: boolean;
+  rawMaterias: [number, number, number, number, number];
+  rawMateriaTiers: [number, number, number, number, number];
+}
+
 export class GearPacketCapture extends EventEmitter {
   private captureInterface: CaptureInterface | null = null;
-  private pendingItems: Map<number, { itemId: number; hq: boolean }> = new Map();
+  private pendingItems: Map<number, PendingItem> = new Map();
   private currentClassId?: number;
   private currentCharacterId?: number;
+  private materiaData: MateriaEntry[] = [];
+
+  setMateriaData(data: MateriaEntry[]): void {
+    this.materiaData = data;
+  }
 
   async start(region: Region = 'Global'): Promise<void> {
     const { CaptureInterface, ErrorCodes } = await import('@ffxiv-teamcraft/pcap-ffxiv');
@@ -96,9 +110,13 @@ export class GearPacketCapture extends EventEmitter {
 
     if (msg.type === 'itemInfo' && parsed['containerId'] === 1000) {
       const slot = parsed['slot'] as number;
+      const rawMaterias = (parsed['materia'] ?? [0, 0, 0, 0, 0]) as [number, number, number, number, number];
+      const rawMateriaTiers = (parsed['materiaTiers'] ?? [0, 0, 0, 0, 0]) as [number, number, number, number, number];
       this.pendingItems.set(slot, {
         itemId: parsed['catalogId'] as number,
         hq: parsed['hqFlag'] === true,
+        rawMaterias,
+        rawMateriaTiers,
       });
     }
 
@@ -109,14 +127,17 @@ export class GearPacketCapture extends EventEmitter {
         if (item.itemId === 0) continue;
         const slotName = SLOT_NAMES[slotIndex];
         if (!slotName) continue;
+        const materias = item.rawMaterias.map((id, i) =>
+          resolveMateriaItemId(id, item.rawMateriaTiers[i] ?? 0, this.materiaData)
+        );
+        // materiaSlots: number of packet slots that carry a non-zero materia ID.
+        // canOvermeld and baseParamModifier require item master data; left at defaults.
+        const materiaSlots = item.rawMaterias.filter(id => id !== 0).length;
         items[slotName] = {
           itemId: item.itemId,
           hq: item.hq,
-          // Materia requires itemInfo packet fields `materia[]` + `materiaTiers[]`
-          // and a materia data lookup via resolveMateriaItemId() from materia.ts.
-          // Populated as empty for now — extend when materia data is available.
-          materias: [],
-          materiaSlots: 0,
+          materias,
+          materiaSlots,
           canOvermeld: false,
           baseParamModifier: 1,
         };

@@ -88,13 +88,18 @@ src/
 │
 ├── materia.ts        — resolveMateriaItemId(packetMateriaId, packetTier, data)
 │                       converts raw packet materia fields → FFXIV item ID
-│                       (currently unused; materia fields not yet populated in pcap.ts)
+│
+├── materia-data.ts   — loadMateriaData(projectRoot): reads data/materias.json via node:fs/promises
+│                       compatible with both Bun and Node (pcap-host runs under Node)
+│                       source data: ffxiv-teamcraft/libs/data/src/lib/json/materias.json
 │
 ├── pcap.ts           — GearPacketCapture class
-│                       depends on: types.ts, @ffxiv-teamcraft/pcap-ffxiv
+│                       depends on: types.ts, materia.ts, @ffxiv-teamcraft/pcap-ffxiv
+│                       setMateriaData() accepts MateriaEntry[] for materia resolution
 │
 ├── pcap-host.ts      — thin runner for GearPacketCapture
-│                       depends on: pcap.ts
+│                       depends on: pcap.ts, materia-data.ts
+│                       loads materia data first, then starts capture
 │                       spawned as a child process by bun/index.ts
 │
 ├── index.ts          — Bun HTTP server (startServer)
@@ -161,4 +166,3 @@ interface EquipmentPiece {
 | BIS scraping | Parse gear tables from `thebalanceffxiv.com` |
 | Comparison engine | Diff `GearSnapshot` vs BIS using `GearsetComparison` / `GearsetProgression` |
 | Item ID resolution | Map `itemId` integers to item names / stats |
-| Materia resolution data | `resolveMateriaItemId()` is wired up but needs a `MateriaEntry[]` data source (e.g. from XIVAPI or a bundled data file) — until then all resolved IDs are 0 |

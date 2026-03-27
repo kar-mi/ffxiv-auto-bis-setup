@@ -1,18 +1,23 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { MateriaEntry } from './materia.ts';
-
-const DATA_PATH = 'data/materias.json';
 
 /**
  * Loads materia resolution data from the bundled data file.
  * Each entry maps a packet materia type ID + tier to an FFXIV item ID.
  * Source: ffxiv-teamcraft/libs/data/src/lib/json/materias.json
+ *
+ * Uses node:fs/promises so this works in both Bun and Node (pcap-host runs under Node).
  */
-export async function loadMateriaData(): Promise<MateriaEntry[]> {
-  const file = Bun.file(DATA_PATH);
-  if (!(await file.exists())) {
-    console.warn(`[materia] ${DATA_PATH} not found — materia will not be resolved`);
+export async function loadMateriaData(projectRoot: string): Promise<MateriaEntry[]> {
+  const dataPath = join(projectRoot, 'data', 'materias.json');
+  let text: string;
+  try {
+    text = await readFile(dataPath, 'utf8');
+  } catch {
+    console.warn(`[materia] ${dataPath} not found — materia will not be resolved`);
     return [];
   }
-  const raw = await file.json() as { id: number; tier: number; itemId: number }[];
+  const raw = JSON.parse(text) as { id: number; tier: number; itemId: number }[];
   return raw.map(({ id, tier, itemId }) => ({ id, tier, itemId }));
 }

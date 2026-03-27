@@ -13,8 +13,7 @@ startServer(SERVER_PORT);
 new BrowserWindow({
   title: "FFXIV Gear Setup",
   url: `http://localhost:${SERVER_PORT}`,
-  width: 1280,
-  height: 900,
+  frame: { x: 0, y: 0, width: 1280, height: 900 },
 });
 
 // -----------------------------------------------------------------------
@@ -65,7 +64,7 @@ async function readPcapOutput(): Promise<void> {
   const decoder = new TextDecoder();
   let buffer = "";
 
-  for await (const chunk of pcapProc.stdout) {
+  for await (const chunk of pcapProc.stdout as unknown as AsyncIterable<Uint8Array>) {
     buffer += decoder.decode(chunk, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? ""; // keep incomplete last line
@@ -84,7 +83,7 @@ async function readPcapOutput(): Promise<void> {
 
 async function readPcapStderr(): Promise<void> {
   const decoder = new TextDecoder();
-  for await (const chunk of pcapProc.stderr) {
+  for await (const chunk of pcapProc.stderr as unknown as AsyncIterable<Uint8Array>) {
     console.error("[pcap-host:err]", decoder.decode(chunk));
   }
 }

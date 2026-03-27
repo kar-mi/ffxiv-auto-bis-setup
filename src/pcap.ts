@@ -3,6 +3,7 @@ import type { CaptureInterface, CaptureInterfaceOptions, Message, Region } from 
 import { SLOT_NAMES } from './types.ts';
 import type { EquipmentPiece, GearSnapshot, SlotName } from './types.ts';
 import { resolveMateriaItemId, type MateriaLookup } from './materia.ts';
+import { fetchItemData } from './item-data.ts';
 
 const ACCEPTED_PACKETS: Message['type'][] = [
   'itemInfo',
@@ -48,9 +49,9 @@ export class GearPacketCapture extends EventEmitter {
 
     const options: Partial<CaptureInterfaceOptions> = {
       region,
-      filter: (_header, typeName: Message['type']) => {
+      filter: (_header, typeName) => {
         if (debug) return true; // accept everything so we can see what arrives
-        return ACCEPTED_PACKETS.includes(typeName);
+        return ACCEPTED_PACKETS.includes(typeName as Message['type']);
       },
       logger: msg => console.log(`[pcap] [${msg.type ?? 'info'}] ${msg.message}`),
       name: 'ffxiv_gear_setup',
@@ -61,11 +62,12 @@ export class GearPacketCapture extends EventEmitter {
 
     this.captureInterface.on('message', (msg: Message) => {
       if (debug) {
-        const opcode = (msg as Record<string, unknown>)['opcode'];
-        const p = (msg as Record<string, unknown>)['parsedIpcData'] as Record<string, unknown> | undefined;
+        const raw = msg as unknown as Record<string, unknown>;
+        const opcode = raw['opcode'];
+        const p = raw['parsedIpcData'] as Record<string, unknown> | undefined;
         console.log(`[pcap:debug] type=${msg.type} opcode=${opcode ?? '-'} containerId=${p?.['containerId'] ?? '-'} slot=${p?.['slot'] ?? '-'} catalogId=${p?.['catalogId'] ?? '-'}`);
       }
-      this.handleMessage(msg);
+      this.handleMessage(msg).catch(err => this.emit('error', err));
     });
     this.captureInterface.on('error', err => this.emit('error', err));
     this.captureInterface.on('stopped', () => this.emit('stopped'));
@@ -93,8 +95,8 @@ export class GearPacketCapture extends EventEmitter {
     }
   }
 
-  private handleMessage(msg: Message): void {
-    const parsed = (msg as Record<string, unknown>)['parsedIpcData'] as Record<string, unknown> | undefined;
+  private async handleMessage(msg: Message): Promise<void> {
+    const parsed = (msg as unknown as Record<string, unknown>)['parsedIpcData'] as Record<string, unknown> | undefined;
     if (!parsed) return;
 
     if (msg.type === 'updateClassInfo') {
@@ -109,37 +111,39 @@ export class GearPacketCapture extends EventEmitter {
       const slot = parsed['slot'] as number;
       const rawMaterias = (parsed['materia'] ?? [0, 0, 0, 0, 0]) as [number, number, number, number, number];
       const rawMateriaTiers = (parsed['materiaTiers'] ?? [0, 0, 0, 0, 0]) as [number, number, number, number, number];
+      const catalogId = parsed['catalogId'] as number;
       this.pendingItems.set(slot, {
-        itemId: parsed['catalogId'] as number,
+        itemId: catalogId,
         hq: parsed['hqFlag'] === true,
         rawMaterias,
         rawMateriaTiers,
       });
+      // Pre-fetch item master data so it's ready when containerInfo arrives.
+      if (catalogId !== 0) fetchItemData(catalogId);
     }
 
     if (msg.type === 'containerInfo' && parsed['containerId'] === 1000) {
       const items: Partial<Record<SlotName, EquipmentPiece>> = {};
+      const pendingSnapshot = [...this.pendingItems.entries()];
+      this.pendingItems.clear();
 
-      for (const [slotIndex, item] of this.pendingItems) {
-        if (item.itemId === 0) continue;
+      await Promise.all(pendingSnapshot.map(async ([slotIndex, item]) => {
+        if (item.itemId === 0) return;
         const slotName = SLOT_NAMES[slotIndex];
-        if (!slotName) continue;
+        if (!slotName) return;
         const materias = item.rawMaterias.map((id, i) =>
           resolveMateriaItemId(id, item.rawMateriaTiers[i] ?? 0, this.materiaLookup)
         );
-        // materiaSlots: number of packet slots that carry a non-zero materia ID.
-        // canOvermeld and baseParamModifier require item master data; left at defaults.
-        const materiaSlots = item.rawMaterias.filter(id => id !== 0).length;
+        const { canOvermeld, materiaSlots } = await fetchItemData(item.itemId);
         items[slotName] = {
           itemId: item.itemId,
           hq: item.hq,
           materias,
           materiaSlots,
-          canOvermeld: false,
+          canOvermeld,
           baseParamModifier: 1,
         };
-      }
-      this.pendingItems.clear();
+      }));
 
       if (Object.keys(items).length > 0) {
         const snapshot: GearSnapshot = {

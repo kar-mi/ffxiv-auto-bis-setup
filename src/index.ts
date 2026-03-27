@@ -12,6 +12,26 @@ export function setLatestPcapGear(snapshot: GearSnapshot): void {
   latestPcapGear = snapshot;
 }
 
+interface WindowControls {
+  minimize(): void;
+  maximize(): void;
+  close(): void;
+  getFrame(): { x: number; y: number; width: number; height: number };
+  setFrame(x: number, y: number, width: number, height: number): void;
+}
+
+let windowControls: WindowControls = {
+  minimize: () => {},
+  maximize: () => {},
+  close: () => {},
+  getFrame: () => ({ x: 0, y: 0, width: 1280, height: 900 }),
+  setFrame: () => {},
+};
+
+export function setWindowControls(controls: WindowControls): void {
+  windowControls = controls;
+}
+
 function json(data: unknown, status = 200): Response {
   return Response.json(data, {
     status,
@@ -36,6 +56,27 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
     port,
     async fetch(req) {
       const { pathname } = new URL(req.url);
+
+      if (pathname === "/window/minimize" && req.method === "POST") {
+        windowControls.minimize();
+        return json({ ok: true });
+      }
+      if (pathname === "/window/maximize" && req.method === "POST") {
+        windowControls.maximize();
+        return json({ ok: true });
+      }
+      if (pathname === "/window/close" && req.method === "POST") {
+        windowControls.close();
+        return json({ ok: true });
+      }
+      if (pathname === "/window/frame" && req.method === "GET") {
+        return json(windowControls.getFrame());
+      }
+      if (pathname === "/window/setFrame" && req.method === "POST") {
+        const { x, y, width, height } = (await req.json()) as { x: number; y: number; width: number; height: number };
+        windowControls.setFrame(x, y, width, height);
+        return json({ ok: true });
+      }
 
       if (pathname === "/pcap/gear") {
         if (req.method === "GET") {

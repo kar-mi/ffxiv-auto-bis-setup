@@ -1,7 +1,7 @@
 import { BrowserWindow } from "electrobun/bun";
 import path from "path";
 import { existsSync } from "fs";
-import { startServer } from "../index.ts";
+import { startServer, setWindowControls } from "../index.ts";
 import type { GearSnapshot } from "../types.ts";
 
 const SERVER_PORT = Number(process.env["PORT"] ?? 3000);
@@ -11,10 +11,20 @@ const projectRoot = findProjectRoot(import.meta.dir);
 startServer(SERVER_PORT, path.join(projectRoot, "public"));
 
 // Open the desktop window
-new BrowserWindow({
+const win = new BrowserWindow({
   title: "FFXIV Gear Setup",
   url: `http://localhost:${SERVER_PORT}`,
   frame: { x: 0, y: 0, width: 1280, height: 900 },
+  titleBarStyle: "hidden",
+  transparent: true,
+});
+
+setWindowControls({
+  minimize: () => win.minimize(),
+  maximize: () => win.maximize(),
+  close: () => win.close(),
+  getFrame: () => win.getFrame(),
+  setFrame: (x, y, width, height) => win.setFrame(x, y, width, height),
 });
 
 // -----------------------------------------------------------------------

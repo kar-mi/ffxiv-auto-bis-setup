@@ -49,3 +49,50 @@ export interface GearSnapshot {
   capturedAt: string;
 }
 
+// ---- BIS types --------------------------------------------------------------
+
+/** A single BIS item from xivgear.app */
+export interface BisItem {
+  itemId: number;
+  slot: SlotName;
+  /** Materia item IDs for this slot (0 = empty). */
+  materias: number[];
+}
+
+/** A normalized BIS gear set fetched from xivgear.app */
+export interface BisGearSet {
+  name: string;
+  job: string;
+  items: Partial<Record<SlotName, BisItem>>;
+  foodId?: number;
+  /** The xivgear.app URL this set was fetched from. */
+  source: string;
+}
+
+/** A labeled xivgear.app link scraped from The Balance. */
+export interface BisLink {
+  label: string;
+  url: string;
+}
+
+// ---- Comparison types -------------------------------------------------------
+
+export type SlotStatus = 'match' | 'wrong-item' | 'wrong-materia' | 'missing' | 'bis-empty';
+
+export interface SlotComparison {
+  slot: SlotName;
+  status: SlotStatus;
+  equippedItemId?: number;
+  bisItemId?: number;
+  equippedMaterias?: number[];
+  bisMaterias?: number[];
+}
+
+export interface GearsetComparison {
+  slots: SlotComparison[];
+  matchCount: number;
+  wrongItemCount: number;
+  wrongMateriaCount: number;
+  missingCount: number;
+}
+

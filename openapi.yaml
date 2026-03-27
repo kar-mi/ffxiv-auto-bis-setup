@@ -1,0 +1,538 @@
+openapi: 3.0.3
+info:
+  title: FFXIV Gear Setup API
+  description: >
+    Compares a character's packet-captured gear against Best-In-Slot (BIS)
+    recommendations sourced from The Balance FFXIV and xivgear.app.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:3000
+
+tags:
+  - name: item
+    description: Item metadata from XIVAPI
+  - name: pcap
+    description: Gear snapshots from packet capture
+  - name: bis
+    description: Best-In-Slot sets from xivgear.app
+  - name: compare
+    description: Gear vs BIS comparison
+  - name: window
+    description: Desktop window controls (Electrobun only)
+
+paths:
+
+  # ---------------------------------------------------------------------------
+  # Item data
+  # ---------------------------------------------------------------------------
+
+  /item/{id}:
+    get:
+      tags: [item]
+      summary: Get item metadata
+      description: >
+        Fetches item name, icon, item level, and materia slot info from XIVAPI v2.
+        Results are cached for the lifetime of the process.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 49697
+      responses:
+        "200":
+          description: Item metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemData"
+
+  # ---------------------------------------------------------------------------
+  # Packet capture
+  # ---------------------------------------------------------------------------
+
+  /pcap/gear:
+    get:
+      tags: [pcap]
+      summary: Get latest gear snapshot
+      description: >
+        Returns the most recent GearSnapshot received from the packet capture
+        process. Returns 404 if no snapshot has been captured yet.
+      responses:
+        "200":
+          description: Latest captured gear
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GearSnapshot"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [pcap]
+      summary: Store a gear snapshot
+      description: >
+        Stores a new GearSnapshot in memory. Called internally by the pcap
+        child process; not intended for direct use.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GearSnapshot"
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
+
+  # ---------------------------------------------------------------------------
+  # BIS
+  # ---------------------------------------------------------------------------
+
+  /balance/{role}/{job}:
+    get:
+      tags: [bis]
+      summary: List BIS links for a job
+      description: >
+        Scrapes The Balance FFXIV for all xivgear.app BIS links for a job.
+        Includes sets embedded as iframes (current-patch sets) and plain anchor
+        links (prog, ultimates, criterion). Set names are fetched from xivgear.app
+        to label iframe-embedded sets.
+      parameters:
+        - name: role
+          in: path
+          required: true
+          description: Role slug used by The Balance
+          schema:
+            type: string
+            enum: [tanks, healers, melee, ranged, casters]
+          example: tanks
+        - name: job
+          in: path
+          required: true
+          description: Job slug used by The Balance
+          schema:
+            type: string
+          example: warrior
+      responses:
+        "200":
+          description: List of labeled xivgear.app links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BisLink"
+              example:
+                - label: "2.5"
+                  url: "https://xivgear.app/?page=bis|war|current&selectedIndex=0"
+                - label: "2.45"
+                  url: "https://xivgear.app/?page=bis|war|current&selectedIndex=1"
+                - label: "https://xivgear.app/#/bis/war/prog"
+                  url: "https://xivgear.app/#/bis/war/prog"
+        "502":
+          $ref: "#/components/responses/UpstreamError"
+
+  /bis/sets:
+    get:
+      tags: [bis]
+      summary: List available set names
+      description: >
+        Returns the ordered list of set names for a given xivgear.app URL.
+        Use this to discover valid `set` values before calling `/bis` or `/compare`.
+      parameters:
+        - $ref: "#/components/parameters/XivgearUrl"
+      responses:
+        "200":
+          description: Ordered list of set names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+              example: ["2.5", "2.45"]
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/UpstreamError"
+
+  /bis:
+    get:
+      tags: [bis]
+      summary: Fetch a BIS gear set
+      description: >
+        Fetches and returns a normalized BIS gear set from xivgear.app.
+        Results are cached in-memory by (url, set) for the lifetime of the process.
+
+
+        `set` can be a set name (e.g. `2.5`) or a 0-based index (e.g. `0`).
+        If omitted, defaults to the `selectedIndex` in the URL, then `0`.
+
+
+        Hash-style xivgear URLs (`/#/bis/war/prog`) are automatically converted
+        to the query-param style (`/?page=bis|war|prog`) before calling the API.
+      parameters:
+        - $ref: "#/components/parameters/XivgearUrl"
+        - $ref: "#/components/parameters/SetParam"
+      responses:
+        "200":
+          description: Normalized BIS gear set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BisGearSet"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/UpstreamError"
+
+  /compare:
+    get:
+      tags: [compare]
+      summary: Compare captured gear against BIS
+      description: >
+        Diffs the most recently packet-captured gear snapshot against a BIS set.
+        Returns 409 if no gear has been captured yet.
+
+
+        Each slot is assigned one of five statuses:
+
+        - `match` — correct item and materia
+
+        - `wrong-item` — different item equipped
+
+        - `wrong-materia` — correct item but melds differ
+
+        - `missing` — slot is empty but BIS requires an item
+
+        - `bis-empty` — BIS has no item for this slot (e.g. off-hand for most jobs)
+
+
+        Materia comparison ignores order and trailing empty slots.
+      parameters:
+        - $ref: "#/components/parameters/XivgearUrl"
+        - $ref: "#/components/parameters/SetParam"
+      responses:
+        "200":
+          description: Per-slot comparison result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GearsetComparison"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: No gear snapshot available yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          $ref: "#/components/responses/UpstreamError"
+
+  # ---------------------------------------------------------------------------
+  # Window controls (Electrobun desktop only)
+  # ---------------------------------------------------------------------------
+
+  /window/minimize:
+    post:
+      tags: [window]
+      summary: Minimize window
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
+
+  /window/maximize:
+    post:
+      tags: [window]
+      summary: Maximize window
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
+
+  /window/close:
+    post:
+      tags: [window]
+      summary: Close window
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
+
+  /window/frame:
+    get:
+      tags: [window]
+      summary: Get window frame
+      responses:
+        "200":
+          description: Current window position and size
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WindowFrame"
+
+  /window/setFrame:
+    post:
+      tags: [window]
+      summary: Set window frame
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WindowFrame"
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
+
+# -----------------------------------------------------------------------------
+# Reusable components
+# -----------------------------------------------------------------------------
+
+components:
+
+  parameters:
+    XivgearUrl:
+      name: url
+      in: query
+      required: true
+      description: A xivgear.app URL (from `/balance` or typed directly)
+      schema:
+        type: string
+      example: "https://xivgear.app/?page=bis|war|current"
+
+    SetParam:
+      name: set
+      in: query
+      required: false
+      description: >
+        Set name (e.g. `2.5`) or 0-based index (e.g. `0`).
+        Defaults to `selectedIndex` in the URL, then `0`.
+      schema:
+        type: string
+      example: "2.5"
+
+  responses:
+    Ok:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ok:
+                type: boolean
+                example: true
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    BadRequest:
+      description: Missing or invalid parameter
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    UpstreamError:
+      description: Upstream request to The Balance or xivgear.app failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    # ---- Item ----------------------------------------------------------------
+
+    ItemData:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Vanguard's Blade"
+        icon:
+          type: string
+          nullable: true
+          example: "https://v2.xivapi.com/asset/ui/icon/..."
+        itemLevel:
+          type: integer
+          example: 730
+        materiaSlots:
+          type: integer
+          example: 2
+        canOvermeld:
+          type: boolean
+          example: false
+
+    # ---- Packet capture ------------------------------------------------------
+
+    EquipmentPiece:
+      type: object
+      properties:
+        itemId:
+          type: integer
+        hq:
+          type: boolean
+        materias:
+          type: array
+          items:
+            type: integer
+          description: Resolved materia item IDs (0 = empty slot)
+        materiaSlots:
+          type: integer
+        canOvermeld:
+          type: boolean
+
+    GearSnapshot:
+      type: object
+      properties:
+        characterId:
+          type: integer
+        classId:
+          type: integer
+        capturedAt:
+          type: string
+          format: date-time
+        items:
+          type: object
+          description: Keyed by SlotName
+          additionalProperties:
+            $ref: "#/components/schemas/EquipmentPiece"
+
+    # ---- BIS -----------------------------------------------------------------
+
+    BisLink:
+      type: object
+      required: [label, url]
+      properties:
+        label:
+          type: string
+          description: Human-readable set name or raw URL if no label found
+          example: "2.5"
+        url:
+          type: string
+          description: Full xivgear.app URL
+          example: "https://xivgear.app/?page=bis|war|current&selectedIndex=0"
+
+    BisItem:
+      type: object
+      properties:
+        itemId:
+          type: integer
+          example: 49697
+        slot:
+          $ref: "#/components/schemas/SlotName"
+        materias:
+          type: array
+          items:
+            type: integer
+          description: Materia item IDs for this slot
+
+    BisGearSet:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "2.5"
+        job:
+          type: string
+          example: "WAR"
+        source:
+          type: string
+          description: The xivgear.app URL this set was fetched from
+        foodId:
+          type: integer
+          nullable: true
+        items:
+          type: object
+          description: Keyed by SlotName
+          additionalProperties:
+            $ref: "#/components/schemas/BisItem"
+
+    # ---- Comparison ----------------------------------------------------------
+
+    SlotStatus:
+      type: string
+      enum: [match, wrong-item, wrong-materia, missing, bis-empty]
+
+    SlotComparison:
+      type: object
+      required: [slot, status]
+      properties:
+        slot:
+          $ref: "#/components/schemas/SlotName"
+        status:
+          $ref: "#/components/schemas/SlotStatus"
+        equippedItemId:
+          type: integer
+        bisItemId:
+          type: integer
+        equippedMaterias:
+          type: array
+          items:
+            type: integer
+        bisMaterias:
+          type: array
+          items:
+            type: integer
+
+    GearsetComparison:
+      type: object
+      properties:
+        matchCount:
+          type: integer
+        wrongItemCount:
+          type: integer
+        wrongMateriaCount:
+          type: integer
+        missingCount:
+          type: integer
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/SlotComparison"
+
+    # ---- Shared --------------------------------------------------------------
+
+    SlotName:
+      type: string
+      enum:
+        - mainHand
+        - offHand
+        - head
+        - chest
+        - gloves
+        - belt
+        - legs
+        - feet
+        - earRings
+        - necklace
+        - bracelet
+        - ring1
+        - ring2
+        - crystal
+
+    WindowFrame:
+      type: object
+      required: [x, y, width, height]
+      properties:
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number

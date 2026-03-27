@@ -14,6 +14,7 @@ console.warn  = (...a) => _write("[warn] ", a);
 console.error = (...a) => _write("[error] ", a);
 
 import { GearPacketCapture } from "./pcap.ts";
+import { loadMateriaData } from "./materia-data.ts";
 
 function send(msg: Record<string, unknown>): void {
   process.stdout.write(JSON.stringify(msg) + "\n");
@@ -40,6 +41,13 @@ capture.on("gearSnapshot", (snapshot) => {
 
 process.on("SIGTERM", () => {
   capture.stop().then(() => process.exit(0));
+});
+
+loadMateriaData().then(data => {
+  capture.setMateriaData(data);
+  console.log(`[materia] Loaded ${data.length} entries`);
+}).catch(err => {
+  console.warn('[materia] Failed to load materia data:', err);
 });
 
 void capture.start(region);

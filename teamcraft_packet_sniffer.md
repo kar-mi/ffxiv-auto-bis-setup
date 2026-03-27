@@ -208,6 +208,8 @@ This gives the UI the ability to display items in the same order as the in-game 
 
 https://cdn.jsdelivr.net/gh/karashiiro/FFXIVOpcodes@latest/opcodes.min.json
 
+https://xiv.dev/network/packet-structure
+
 ## Data Flow Diagram
 
 ```

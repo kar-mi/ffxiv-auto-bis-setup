@@ -10,7 +10,7 @@ const SERVER_PORT = Number(process.env["PORT"] ?? 3000);
 startServer(SERVER_PORT);
 
 // Open the desktop window
-const win = new BrowserWindow({
+new BrowserWindow({
   title: "FFXIV Gear Setup",
   url: `http://localhost:${SERVER_PORT}`,
   width: 1280,

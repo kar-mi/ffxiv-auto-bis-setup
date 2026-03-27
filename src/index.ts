@@ -1,6 +1,14 @@
 import type { GearSnapshot } from "./types.ts";
 
-export let latestPcapGear: GearSnapshot | null = null;
+let latestPcapGear: GearSnapshot | null = null;
+
+export function getLatestPcapGear(): GearSnapshot | null {
+  return latestPcapGear;
+}
+
+export function setLatestPcapGear(snapshot: GearSnapshot): void {
+  latestPcapGear = snapshot;
+}
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, {
@@ -29,11 +37,12 @@ export function startServer(port = 3000): ReturnType<typeof Bun.serve> {
 
       if (pathname === "/pcap/gear") {
         if (req.method === "GET") {
-          if (!latestPcapGear) return notFound("No packet-captured gear available yet");
-          return json(latestPcapGear);
+          const gear = getLatestPcapGear();
+          if (!gear) return notFound("No packet-captured gear available yet");
+          return json(gear);
         }
         if (req.method === "POST") {
-          latestPcapGear = (await req.json()) as GearSnapshot;
+          setLatestPcapGear((await req.json()) as GearSnapshot);
           return json({ ok: true });
         }
         return json({ error: "Method not allowed" }, 405);

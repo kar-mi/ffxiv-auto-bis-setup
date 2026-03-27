@@ -15,6 +15,7 @@ console.error = (...a) => _write("[error] ", a);
 
 import { GearPacketCapture } from "./pcap.ts";
 import { loadMateriaData } from "./materia-data.ts";
+import { buildMateriaLookup } from "./materia.ts";
 
 // pcap-host is spawned with cwd set to the project root (see bun/index.ts)
 const projectRoot = process.cwd();
@@ -47,7 +48,7 @@ process.on("SIGTERM", () => {
 });
 
 loadMateriaData(projectRoot).then(data => {
-  capture.setMateriaData(data);
+  capture.setMateriaLookup(buildMateriaLookup(data));
   console.log(`[materia] Loaded ${data.length} entries`);
   return capture.start(region);
 }).catch(err => {

@@ -2,10 +2,7 @@ import { EventEmitter } from 'events';
 import type { CaptureInterface, CaptureInterfaceOptions, Message, Region } from '@ffxiv-teamcraft/pcap-ffxiv';
 import { SLOT_NAMES } from './types.ts';
 import type { EquipmentPiece, GearSnapshot, SlotName } from './types.ts';
-import { resolveMateriaItemId } from './materia.ts';
-import type { MateriaEntry } from './materia.ts';
-
-export type { EquipmentPiece, GearSnapshot };
+import { resolveMateriaItemId, type MateriaLookup } from './materia.ts';
 
 const ACCEPTED_PACKETS: Message['type'][] = [
   'itemInfo',
@@ -38,10 +35,10 @@ export class GearPacketCapture extends EventEmitter {
   private pendingItems: Map<number, PendingItem> = new Map();
   private currentClassId?: number;
   private currentCharacterId?: number;
-  private materiaData: MateriaEntry[] = [];
+  private materiaLookup: MateriaLookup = new Map();
 
-  setMateriaData(data: MateriaEntry[]): void {
-    this.materiaData = data;
+  setMateriaLookup(lookup: MateriaLookup): void {
+    this.materiaLookup = lookup;
   }
 
   async start(region: Region = 'Global'): Promise<void> {
@@ -128,7 +125,7 @@ export class GearPacketCapture extends EventEmitter {
         const slotName = SLOT_NAMES[slotIndex];
         if (!slotName) continue;
         const materias = item.rawMaterias.map((id, i) =>
-          resolveMateriaItemId(id, item.rawMateriaTiers[i] ?? 0, this.materiaData)
+          resolveMateriaItemId(id, item.rawMateriaTiers[i] ?? 0, this.materiaLookup)
         );
         // materiaSlots: number of packet slots that carry a non-zero materia ID.
         // canOvermeld and baseParamModifier require item master data; left at defaults.

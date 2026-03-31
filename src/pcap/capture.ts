@@ -1,13 +1,23 @@
 import { EventEmitter } from 'events';
 import type { CaptureInterface, CaptureInterfaceOptions, Message, Region } from '@ffxiv-teamcraft/pcap-ffxiv';
 import { SLOT_NAMES } from '../types.ts';
-import type { EquipmentPiece, GearSnapshot, SlotName } from '../types.ts';
+import type { EquipmentPiece, GearSnapshot, InventoryItem, InventorySnapshot, SlotName } from '../types.ts';
 import { resolveMateriaItemId, type MateriaLookup } from './materia.ts';
 import { fetchItemData } from '../xivapi/item-data.ts'; // only uses canOvermeld + materiaSlots
+
+/** Container IDs for player bags (0–3) and currency/crystals (2000). */
+const INVENTORY_CONTAINERS = new Set([0, 1, 2, 3, 2000]);
+
+/** Extract the decoded packet fields from a raw pcap Message. */
+function parsedIpcData(msg: Message): Record<string, unknown> | undefined {
+  return (msg as unknown as Record<string, unknown>)['parsedIpcData'] as Record<string, unknown> | undefined;
+}
 
 const ACCEPTED_PACKETS: Message['type'][] = [
   'itemInfo',
   'containerInfo',
+  'currencyCrystalInfo',
+  'updateInventorySlot',
   'updateClassInfo',
   'playerSetup',
 ];
@@ -17,6 +27,7 @@ export interface GearPacketCaptureEvents {
   stopped: () => void;
   error: (err: unknown) => void;
   gearSnapshot: (snapshot: GearSnapshot) => void;
+  inventorySnapshot: (snapshot: InventorySnapshot) => void;
 }
 
 export declare interface GearPacketCapture {
@@ -37,6 +48,14 @@ export class GearPacketCapture extends EventEmitter {
   private currentClassId?: number;
   private currentCharacterId?: number;
   private materiaLookup: MateriaLookup = new Map();
+
+  /**
+   * Inventory state: containerId → (slot → InventoryItem).
+   * Tracks player bags (0–3) and currency/crystals (2000).
+   */
+  private inventoryState: Map<number, Map<number, InventoryItem>> = new Map();
+  /** Pending itemInfo/currencyCrystalInfo packets awaiting containerInfo flush. */
+  private pendingInventory: Map<number, Map<number, InventoryItem>> = new Map();
 
   setMateriaLookup(lookup: MateriaLookup): void {
     this.materiaLookup = lookup;
@@ -64,7 +83,7 @@ export class GearPacketCapture extends EventEmitter {
       if (debug) {
         const raw = msg as unknown as Record<string, unknown>;
         const opcode = raw['opcode'];
-        const p = raw['parsedIpcData'] as Record<string, unknown> | undefined;
+        const p = parsedIpcData(msg);
         console.log(`[pcap:debug] type=${msg.type} opcode=${opcode ?? '-'} containerId=${p?.['containerId'] ?? '-'} slot=${p?.['slot'] ?? '-'} catalogId=${p?.['catalogId'] ?? '-'}`);
       }
       this.handleMessage(msg).catch(err => this.emit('error', err));
@@ -74,16 +93,16 @@ export class GearPacketCapture extends EventEmitter {
     this.captureInterface.on('ready', () => {
       // Give 200ms for the named pipe to be created (matches Teamcraft behaviour)
       setTimeout(() => {
-        this.captureInterface!
-          .start()
-          .then(() => {
+        void (async () => {
+          try {
+            await this.captureInterface!.start();
             console.log('[pcap] Packet capture started');
             this.emit('started');
-          })
-          .catch((code: unknown) => {
+          } catch (code: unknown) {
             const message = typeof code === 'number' ? (ErrorCodes[code] ?? `Error code: ${code}`) : String(code);
             this.emit('error', new Error(message));
-          });
+          }
+        })();
       }, 200);
     });
   }
@@ -96,7 +115,7 @@ export class GearPacketCapture extends EventEmitter {
   }
 
   private async handleMessage(msg: Message): Promise<void> {
-    const parsed = (msg as unknown as Record<string, unknown>)['parsedIpcData'] as Record<string, unknown> | undefined;
+    const parsed = parsedIpcData(msg);
     if (!parsed) return;
 
     if (msg.type === 'updateClassInfo') {
@@ -106,6 +125,62 @@ export class GearPacketCapture extends EventEmitter {
     if (msg.type === 'playerSetup') {
       this.currentCharacterId = parsed['contentId'] as number | undefined;
     }
+
+    // ---- Inventory packet handling (bags 0–3 and currency/crystals 2000) -----
+
+    if ((msg.type === 'itemInfo' || msg.type === 'currencyCrystalInfo')) {
+      const cid = parsed['containerId'] as number;
+      if (INVENTORY_CONTAINERS.has(cid) && cid !== 1000) {
+        const slot = parsed['slot'] as number;
+        const itemId = parsed['catalogId'] as number;
+        const quantity = (parsed['quantity'] ?? parsed['stackSize'] ?? 1) as number;
+        if (!this.pendingInventory.has(cid)) this.pendingInventory.set(cid, new Map());
+        this.pendingInventory.get(cid)!.set(slot, {
+          itemId,
+          quantity: itemId === 0 ? 0 : quantity,
+          hq: parsed['hqFlag'] === true,
+          containerId: cid,
+          slot,
+        });
+      }
+    }
+
+    if (msg.type === 'containerInfo') {
+      const cid = parsed['containerId'] as number;
+      if (INVENTORY_CONTAINERS.has(cid) && cid !== 1000) {
+        const pending = this.pendingInventory.get(cid);
+        if (pending) {
+          this.inventoryState.set(cid, pending);
+          this.pendingInventory.delete(cid);
+          this.emitInventorySnapshot();
+        }
+      }
+    }
+
+    // updateInventorySlot — single-slot real-time update for any tracked container
+    if (msg.type === 'updateInventorySlot') {
+      const cid = parsed['containerId'] as number;
+      if (INVENTORY_CONTAINERS.has(cid) && cid !== 1000) {
+        const slot = parsed['slot'] as number;
+        const itemId = parsed['catalogId'] as number;
+        const quantity = (parsed['quantity'] ?? parsed['stackSize'] ?? 1) as number;
+        if (!this.inventoryState.has(cid)) this.inventoryState.set(cid, new Map());
+        if (itemId === 0) {
+          this.inventoryState.get(cid)!.delete(slot);
+        } else {
+          this.inventoryState.get(cid)!.set(slot, {
+            itemId,
+            quantity,
+            hq: parsed['hqFlag'] === true,
+            containerId: cid,
+            slot,
+          });
+        }
+        this.emitInventorySnapshot();
+      }
+    }
+
+    // ---- Equipped gear handling (container 1000) ----------------------------
 
     if (msg.type === 'itemInfo' && parsed['containerId'] === 1000) {
       const slot = parsed['slot'] as number;
@@ -119,7 +194,7 @@ export class GearPacketCapture extends EventEmitter {
         rawMateriaTiers,
       });
       // Pre-fetch item master data so it's ready when containerInfo arrives.
-      if (catalogId !== 0) fetchItemData(catalogId);
+      if (catalogId !== 0) void fetchItemData(catalogId);
     }
 
     if (msg.type === 'containerInfo' && parsed['containerId'] === 1000) {
@@ -154,5 +229,20 @@ export class GearPacketCapture extends EventEmitter {
         this.emit('gearSnapshot', snapshot);
       }
     }
+  }
+
+  private emitInventorySnapshot(): void {
+    const items: InventoryItem[] = [];
+    for (const container of this.inventoryState.values()) {
+      for (const item of container.values()) {
+        if (item.itemId !== 0 && item.quantity > 0) items.push(item);
+      }
+    }
+    const snapshot: InventorySnapshot = {
+      characterId: this.currentCharacterId,
+      items,
+      capturedAt: new Date().toISOString(),
+    };
+    this.emit('inventorySnapshot', snapshot);
   }
 }

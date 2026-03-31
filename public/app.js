@@ -87,7 +87,7 @@ function clearStatus() { el("status").classList.add("hidden"); }
 // ---- Rendering ----------------------------------------------------------
 
 function renderMateria(piece, itemDataMap) {
-  const totalSlots = piece.canOvermeld ? 5 : 2;
+  const totalSlots = piece.materiaSlots ?? (piece.canOvermeld ? 5 : 2);
   const circles = Array.from({ length: totalSlots }, (_, i) => {
     const id = piece.materias[i] ?? 0;
     const filled = id !== 0;
@@ -106,7 +106,7 @@ function renderMateria(piece, itemDataMap) {
 }
 
 function renderMateriaCompare(piece, bisItem, itemDataMap) {
-  const totalSlots = Math.max(piece?.canOvermeld ? 5 : 2, bisItem?.materias?.length ?? 0, 2);
+  const totalSlots = Math.max(piece?.materiaSlots ?? (piece?.canOvermeld ? 5 : 2), bisItem?.materias?.length ?? 0, 2);
   const circles = Array.from({ length: totalSlots }, (_, i) => {
     const equippedId = piece?.materias[i] ?? 0;
     const bisId = bisItem?.materias[i] ?? 0;
@@ -209,7 +209,7 @@ function renderGearItem(slot, piece, itemDataMap, slotComp) {
          onerror="console.warn('[img] failed to load icon for item ${piece.itemId}:', this.src); this.style.display='none'">`
     : `<div class="w-10 h-10 rounded bg-ffxiv-border flex-shrink-0"></div>`;
   const hq = piece.hq ? ` <span class="text-[10px] text-ffxiv-gold align-middle">HQ</span>` : "";
-  const hoverClass = isClickable ? "hover:border-ffxiv-gold" : "hover:border-ffxiv-gold";
+  const hoverClass = "hover:border-ffxiv-gold";
 
   return `
     <div class="relative flex items-start gap-2 bg-ffxiv-panel border ${borderClass} rounded p-2 transition-colors ${hoverClass} ${clickableClass}"
@@ -244,13 +244,9 @@ function renderModalItemColumn(heading, piece, bisItem, itemDataMap, status) {
 
   let materiaHtml = "";
   if (piece) {
-    if (status === "wrong-materia" && !isBis) {
-      materiaHtml = renderMateriaCompare(piece, bisItem, itemDataMap);
-    } else if (status === "wrong-materia" && isBis) {
-      materiaHtml = renderMateriaCompare(piece, bisItem, itemDataMap);
-    } else {
-      materiaHtml = renderMateria(piece, itemDataMap);
-    }
+    materiaHtml = status === "wrong-materia"
+      ? renderMateriaCompare(piece, bisItem, itemDataMap)
+      : renderMateria(piece, itemDataMap);
   }
 
   const emptyHtml = !piece ? `<p class="text-xs text-gray-500 italic">Empty</p>` : "";

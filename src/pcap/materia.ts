@@ -13,18 +13,6 @@ export interface MateriaEntry {
   itemId: number;
 }
 
-/**
- * Resolves a raw packet materia type + tier to an FFXIV item ID.
- *
- * Packet materia fields:
- *   - `packetMateriaId` — the materia type (stat category)
- *   - `packetTier`      — 0-indexed tier from the packet (add 1 to match data tier)
- *
- * Returns 0 if no match is found (empty or unknown slot).
- *
- * Usage: call once per materia slot when processing itemInfo packets that include
- * `materia[]` and `materiaTiers[]` arrays.
- */
 /** Pre-built lookup map from `"${id},${tier}"` → itemId for O(1) resolution. */
 export type MateriaLookup = Map<string, number>;
 

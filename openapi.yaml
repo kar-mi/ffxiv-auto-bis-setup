@@ -187,6 +187,39 @@ paths:
         "502":
           $ref: "#/components/responses/UpstreamError"
 
+  /pcap/inventory:
+    get:
+      tags: [pcap]
+      summary: Get latest inventory snapshot
+      description: >
+        Returns the most recently captured player inventory snapshot (bags 0–3
+        and currency/crystal container 2000). Returns 404 if no snapshot has
+        been captured yet.
+      responses:
+        "200":
+          description: Latest captured inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventorySnapshot"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [pcap]
+      summary: Store an inventory snapshot
+      description: >
+        Stores a new InventorySnapshot in memory. Called internally by the pcap
+        child process; not intended for direct use.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventorySnapshot"
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
+
   /compare:
     get:
       tags: [compare]
@@ -220,6 +253,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GearsetComparison"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: No gear snapshot available yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          $ref: "#/components/responses/UpstreamError"
+
+  /needs:
+    get:
+      tags: [compare]
+      summary: What the player needs to complete BIS
+      description: >
+        Computes what a player still needs to acquire or re-meld to complete a
+        BIS set. Cross-references the comparison result against the latest
+        inventory snapshot so each need shows how many of the item are already
+        in the player's bags.
+
+
+        Returns 409 if no gear snapshot has been captured yet. If no inventory
+        snapshot exists, `quantityInBags` fields will be `0`.
+      parameters:
+        - $ref: "#/components/parameters/XivgearUrl"
+        - $ref: "#/components/parameters/SetParam"
+      responses:
+        "200":
+          description: Items and materia still needed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GearNeeds"
         "400":
           $ref: "#/components/responses/BadRequest"
         "409":
@@ -397,6 +464,7 @@ components:
 
     GearSnapshot:
       type: object
+      required: [capturedAt, items]
       properties:
         characterId:
           type: integer
@@ -428,12 +496,11 @@ components:
 
     BisItem:
       type: object
+      required: [itemId, materias]
       properties:
         itemId:
           type: integer
           example: 49697
-        slot:
-          $ref: "#/components/schemas/SlotName"
         materias:
           type: array
           items:
@@ -442,6 +509,7 @@ components:
 
     BisGearSet:
       type: object
+      required: [name, job, source, items]
       properties:
         name:
           type: string
@@ -454,12 +522,101 @@ components:
           description: The xivgear.app URL this set was fetched from
         foodId:
           type: integer
-          nullable: true
+          description: Optional food item ID recommended for this set
         items:
           type: object
           description: Keyed by SlotName
           additionalProperties:
             $ref: "#/components/schemas/BisItem"
+
+    # ---- Inventory -----------------------------------------------------------
+
+    InventoryItem:
+      type: object
+      required: [itemId, quantity, hq, containerId, slot]
+      properties:
+        itemId:
+          type: integer
+        quantity:
+          type: integer
+        hq:
+          type: boolean
+        containerId:
+          type: integer
+          description: >
+            Container ID: 0–3 = player bags, 2000 = currency/crystals
+        slot:
+          type: integer
+
+    InventorySnapshot:
+      type: object
+      required: [capturedAt, items]
+      properties:
+        characterId:
+          type: integer
+        capturedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryItem"
+
+    # ---- Needs ---------------------------------------------------------------
+
+    ItemNeed:
+      type: object
+      required: [slot, reason, bisItemId, quantityInBags]
+      properties:
+        slot:
+          $ref: "#/components/schemas/SlotName"
+        reason:
+          type: string
+          enum: [wrong-item, missing]
+        bisItemId:
+          type: integer
+        equippedItemId:
+          type: integer
+        quantityInBags:
+          type: integer
+          description: How many of this item the player already has in their bags
+
+    MateriaChange:
+      type: object
+      required: [slot, bisItemId, toAdd, toRemove, quantityInBags]
+      properties:
+        slot:
+          $ref: "#/components/schemas/SlotName"
+        bisItemId:
+          type: integer
+        toAdd:
+          type: array
+          items:
+            type: integer
+          description: Materia item IDs that need to be melded (in BIS but not equipped)
+        toRemove:
+          type: array
+          items:
+            type: integer
+          description: Materia item IDs that are equipped but not in BIS (must be stripped first)
+        quantityInBags:
+          type: object
+          additionalProperties:
+            type: integer
+          description: For each materia in toAdd, how many the player has in bags
+
+    GearNeeds:
+      type: object
+      required: [itemNeeds, materiaChanges]
+      properties:
+        itemNeeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemNeed"
+        materiaChanges:
+          type: array
+          items:
+            $ref: "#/components/schemas/MateriaChange"
 
     # ---- Comparison ----------------------------------------------------------
 
@@ -508,6 +665,10 @@ components:
 
     SlotName:
       type: string
+      description: >
+        Canonical gear slot identifier. `belt` was removed in Endwalker but is retained
+        for packet compatibility (slot index 5 still exists in packets). It never appears
+        in BIS sets and is excluded from all comparison logic.
       enum:
         - mainHand
         - offHand

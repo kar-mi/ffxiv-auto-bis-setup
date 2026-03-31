@@ -83,8 +83,7 @@ public/app.js
 src/
 ├── types.ts          — canonical types shared by all modules
 │                       SlotName, SLOT_NAMES, EquipmentPiece, GearSnapshot,
-│                       EquipmentPieceProgression, GearsetProgression,
-│                       GearsetComparison, ItemMeldingData
+│                       GearsetComparison, SlotComparison, SlotStatus
 │
 ├── materia.ts        — resolveMateriaItemId(packetMateriaId, packetTier, data)
 │                       converts raw packet materia fields → FFXIV item ID
@@ -163,6 +162,4 @@ interface EquipmentPiece {
 | Feature | Notes |
 |---------|-------|
 | Lodestone scraping | `@xivapi/nodestone` was removed; `GET/POST /user/:id` routes missing |
-| BIS scraping | Parse gear tables from `thebalanceffxiv.com` |
-| Comparison engine | Diff `GearSnapshot` vs BIS using `GearsetComparison` / `GearsetProgression` |
-| Item ID resolution | Map `itemId` integers to item names / stats |
+| Bundler | Replace CDN Tailwind with a proper build step; convert `public/app.js` to ESM modules |

@@ -1,13 +1,14 @@
 import path from "path";
-import type { GearSnapshot, BisGearSet } from "../types.ts";
+import type { GearSnapshot, InventorySnapshot } from "../types.ts";
 import { fetchItemData } from "../xivapi/item-data.ts";
-import { fetchBisSet, fetchSetNames, resolveSetIndex } from "../bis/xivgear.ts";
+import { getBisSet, fetchSetNames, resolveSetIndex } from "../bis/xivgear.ts";
 import { compareGear } from "../bis/comparison.ts";
 import { fetchBisLinks } from "../bis/balance.ts";
+import { computeNeeds } from "../bis/needs.ts";
 
 
 let latestPcapGear: GearSnapshot | null = null;
-const bisCache = new Map<string, BisGearSet>();
+let latestInventory: InventorySnapshot | null = null;
 
 export function getLatestPcapGear(): GearSnapshot | null {
   return latestPcapGear;
@@ -15,6 +16,14 @@ export function getLatestPcapGear(): GearSnapshot | null {
 
 export function setLatestPcapGear(snapshot: GearSnapshot): void {
   latestPcapGear = snapshot;
+}
+
+export function getLatestInventory(): InventorySnapshot | null {
+  return latestInventory;
+}
+
+export function setLatestInventory(snapshot: InventorySnapshot): void {
+  latestInventory = snapshot;
 }
 
 interface WindowControls {
@@ -120,7 +129,38 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
           return json(gear);
         }
         if (req.method === "POST") {
-          setLatestPcapGear((await req.json()) as GearSnapshot);
+          const body = (await req.json()) as Record<string, unknown>;
+          if (typeof body["capturedAt"] !== "string" || typeof body["items"] !== "object" || body["items"] === null) {
+            return json({ error: "Invalid GearSnapshot: missing capturedAt or items" }, 400);
+          }
+          setLatestPcapGear(body as unknown as GearSnapshot);
+          return json({ ok: true });
+        }
+        return json({ error: "Method not allowed" }, 405);
+      }
+
+      // GET  /pcap/inventory
+      //   Returns the most recent InventorySnapshot (player bags + crystals).
+      //   404 if no inventory has been captured yet.
+      //
+      //   Response: InventorySnapshot
+      //     { characterId?, capturedAt, items: InventoryItem[] }
+      //     InventoryItem: { itemId, quantity, hq, containerId, slot }
+      //
+      // POST /pcap/inventory
+      //   Stores a new InventorySnapshot (called by the pcap child process).
+      if (pathname === "/pcap/inventory") {
+        if (req.method === "GET") {
+          const inv = getLatestInventory();
+          if (!inv) return notFound("No packet-captured inventory available yet");
+          return json(inv);
+        }
+        if (req.method === "POST") {
+          const body = (await req.json()) as Record<string, unknown>;
+          if (typeof body["capturedAt"] !== "string" || !Array.isArray(body["items"])) {
+            return json({ error: "Invalid InventorySnapshot: missing capturedAt or items" }, 400);
+          }
+          setLatestInventory(body as unknown as InventorySnapshot);
           return json({ ok: true });
         }
         return json({ error: "Method not allowed" }, 405);
@@ -186,7 +226,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
       //
       //   Response: BisGearSet
       //     { name, job, source, foodId?, items: { [slot]: BisItem } }
-      //     BisItem: { itemId, slot, materias: number[] }
+      //     BisItem: { itemId, materias: number[] }
       //
       //   Example: GET /bis?url=https://xivgear.app/?page=bis|war|current&set=2.5
       if (pathname === "/bis" && req.method === "GET") {
@@ -196,11 +236,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         const setParam = params.get("set") ?? undefined;
         try {
           const setIndex = await resolveSetIndex(xivgearUrl, setParam);
-          const cacheKey = `${xivgearUrl}#${setIndex}`;
-          if (!bisCache.has(cacheKey)) {
-            bisCache.set(cacheKey, await fetchBisSet(xivgearUrl, setIndex));
-          }
-          return json(bisCache.get(cacheKey)!);
+          return json(await getBisSet(xivgearUrl, setIndex));
         } catch (e) {
           return json({ error: String(e) }, 502);
         }
@@ -234,11 +270,49 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         const setParam = params.get("set") ?? undefined;
         try {
           const setIndex = await resolveSetIndex(xivgearUrl, setParam);
-          const cacheKey = `${xivgearUrl}#${setIndex}`;
-          if (!bisCache.has(cacheKey)) {
-            bisCache.set(cacheKey, await fetchBisSet(xivgearUrl, setIndex));
-          }
-          return json(compareGear(gear, bisCache.get(cacheKey)!));
+          return json(compareGear(gear, await getBisSet(xivgearUrl, setIndex)));
+        } catch (e) {
+          return json({ error: String(e) }, 502);
+        }
+      }
+
+      // GET /needs?url=&set=
+      //   Returns what the player still needs to obtain or re-meld to complete a
+      //   BIS set, cross-referenced against the current inventory snapshot.
+      //   Returns 409 if no gear has been captured yet.
+      //
+      //   Params:
+      //     url — a xivgear.app URL (same as /compare)
+      //     set — (optional) set name or 0-based index (same as /compare)
+      //
+      //   Response: GearNeeds
+      //     {
+      //       itemNeeds: [{
+      //         slot, reason,           // reason: wrong-item | missing
+      //         bisItemId, equippedItemId?,
+      //         quantityInBags          // how many you already have in your bags
+      //       }],
+      //       materiaChanges: [{
+      //         slot, bisItemId,
+      //         toAdd,                  // materia item IDs to meld
+      //         toRemove,               // materia item IDs to strip first
+      //         quantityInBags          // { materiaItemId: count } for toAdd items
+      //       }]
+      //     }
+      //
+      //   Example: GET /needs?url=https://xivgear.app/?page=bis|war|current&set=2.5
+      if (pathname === "/needs" && req.method === "GET") {
+        const params = new URL(req.url).searchParams;
+        const xivgearUrl = params.get("url");
+        if (!xivgearUrl) return json({ error: "Missing ?url= parameter" }, 400);
+        const gear = getLatestPcapGear();
+        if (!gear) return json({ error: "No packet-captured gear available yet" }, 409);
+        const setParam = params.get("set") ?? undefined;
+        try {
+          const setIndex = await resolveSetIndex(xivgearUrl, setParam);
+          const bisSet = await getBisSet(xivgearUrl, setIndex);
+          const comparison = compareGear(gear, bisSet);
+          return json(computeNeeds(comparison, bisSet, getLatestInventory()));
         } catch (e) {
           return json({ error: String(e) }, 502);
         }

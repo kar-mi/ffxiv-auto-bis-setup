@@ -3,7 +3,7 @@ import { dlopen, FFIType } from "bun:ffi";
 import path from "path";
 import { existsSync } from "fs";
 import { startServer, setWindowControls } from "../server/index.ts";
-import type { GearSnapshot } from "../types.ts";
+import type { GearSnapshot, InventorySnapshot } from "../types.ts";
 
 const SERVER_PORT = Number(process.env["PORT"] ?? 3000);
 
@@ -85,7 +85,7 @@ const pcapProc = Bun.spawn(["node", pcapCjsPath], {
   stdout: "pipe",
   stderr: "pipe",
   cwd: projectRoot,
-  env: { ...process.env, PCAP_REGION: "Global"},
+  env: { ...process.env, PCAP_REGION: process.env["PCAP_REGION"] ?? "Global" },
 });
 
 // Read newline-delimited JSON from the host process
@@ -117,7 +117,7 @@ async function readPcapStderr(): Promise<void> {
   }
 }
 
-function handlePcapMessage(msg: { type: string; data?: GearSnapshot; message?: string }): void {
+function handlePcapMessage(msg: { type: string; data?: GearSnapshot | InventorySnapshot; message?: string }): void {
   switch (msg.type) {
     case "started":
       console.log("[pcap] Capture running — waiting for gear packets (container 1000)");
@@ -126,13 +126,25 @@ function handlePcapMessage(msg: { type: string; data?: GearSnapshot; message?: s
       console.log("[pcap] Capture stopped");
       break;
     case "gearSnapshot": {
-      const snapshot = msg.data!;
+      if (!msg.data) break;
+      const snapshot = msg.data as GearSnapshot;
       console.log(`[pcap] Gear snapshot: classId=${snapshot.classId} items=${Object.keys(snapshot.items).length}`);
       fetch(`http://localhost:${SERVER_PORT}/pcap/gear`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(snapshot),
-      }).catch((err) => console.error("[pcap] Failed to post snapshot:", err));
+      }).catch((err) => console.error("[pcap] Failed to post gear snapshot:", err));
+      break;
+    }
+    case "inventorySnapshot": {
+      if (!msg.data) break;
+      const snapshot = msg.data as InventorySnapshot;
+      console.log(`[pcap] Inventory snapshot: ${snapshot.items.length} items`);
+      fetch(`http://localhost:${SERVER_PORT}/pcap/inventory`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(snapshot),
+      }).catch((err) => console.error("[pcap] Failed to post inventory snapshot:", err));
       break;
     }
   }

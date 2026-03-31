@@ -43,8 +43,15 @@ capture.on("gearSnapshot", (snapshot) => {
   send({ type: "gearSnapshot", data: snapshot });
 });
 
+capture.on("inventorySnapshot", (snapshot) => {
+  send({ type: "inventorySnapshot", data: snapshot });
+});
+
 process.on("SIGTERM", () => {
-  capture.stop().then(() => process.exit(0));
+  void (async () => {
+    await capture.stop();
+    process.exit(0);
+  })();
 });
 
 async function startCapture(): Promise<void> {

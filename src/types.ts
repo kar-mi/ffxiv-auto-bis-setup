@@ -1,6 +1,10 @@
 /**
  * Canonical gear slot names.
  * Matches @ffxiv-teamcraft/pcap-ffxiv packet field naming and Teamcraft's getPropertyName().
+ *
+ * Note: `belt` was removed from FFXIV in Endwalker but is retained here because packet
+ * slot index 5 still exists. It is excluded from all comparison and display logic and
+ * will never appear in a BisGearSet.
  */
 export type SlotName =
   | 'mainHand' | 'offHand'
@@ -54,7 +58,6 @@ export interface GearSnapshot {
 /** A single BIS item from xivgear.app */
 export interface BisItem {
   itemId: number;
-  slot: SlotName;
   /** Materia item IDs for this slot (0 = empty). */
   materias: number[];
 }
@@ -73,6 +76,55 @@ export interface BisGearSet {
 export interface BisLink {
   label: string;
   url: string;
+}
+
+// ---- Inventory types --------------------------------------------------------
+
+/** A single item stack in a player inventory container. */
+export interface InventoryItem {
+  itemId: number;
+  quantity: number;
+  hq: boolean;
+  containerId: number;
+  slot: number;
+}
+
+/** A snapshot of the player's bag and currency/crystal inventory. */
+export interface InventorySnapshot {
+  characterId?: number;
+  /** All known items across player bags (containers 0–3) and crystals (container 2000). */
+  items: InventoryItem[];
+  capturedAt: string;
+}
+
+// ---- Needs types ------------------------------------------------------------
+
+/** A slot where the player needs to obtain a different item. */
+export interface ItemNeed {
+  slot: SlotName;
+  reason: 'wrong-item' | 'missing';
+  bisItemId: number;
+  equippedItemId?: number;
+  /** How many of this BIS item the player already has in their bags. */
+  quantityInBags: number;
+}
+
+/** A slot where the correct item is equipped but materia needs to change. */
+export interface MateriaChange {
+  slot: SlotName;
+  bisItemId: number;
+  /** Materia item IDs in BIS but not equipped — need to be added. */
+  toAdd: number[];
+  /** Materia item IDs equipped but not in BIS — need to be removed first. */
+  toRemove: number[];
+  /** For each materia in toAdd, how many the player has in bags. */
+  quantityInBags: Record<number, number>;
+}
+
+/** What a player needs to acquire or re-meld to complete a BIS set. */
+export interface GearNeeds {
+  itemNeeds: ItemNeed[];
+  materiaChanges: MateriaChange[];
 }
 
 // ---- Comparison types -------------------------------------------------------

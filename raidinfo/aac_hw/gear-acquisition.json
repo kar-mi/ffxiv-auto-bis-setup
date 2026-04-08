@@ -1,0 +1,158 @@
+{
+  "_note": "Item IDs of 0 = not yet identified. bookIndex is 0-based into the books array (0=Edition1 … 3=Edition4). upgradeMaterialKey must match a key in upgradeMaterials.",
+  "_gapNote": "49762 is unidentified — falls between book 2 (49761) and book 3 (49763). May be a weapon token or unrelated item.",
+  "label": "AAC HW (ilvl 790)",
+  "tomeId": 0,
+  "tomeName": "Allagan Tomestone of Aesthetics",
+  "books": [
+    { "itemId": 49760, "name": "AAC Illustrated: HW Edition 1" },
+    { "itemId": 49761, "name": "AAC Illustrated: HW Edition 2" },
+    { "itemId": 49763, "name": "AAC Illustrated: HW Edition 3" },
+    { "itemId": 49764, "name": "AAC Illustrated: HW Edition 4" }
+  ],
+  "upgradeMaterials": [
+    {
+      "key": "twine",
+      "itemId": 49758,
+      "name": "Thundersteeped Twine",
+      "bookIndex": 3,
+      "bookCount": 4
+    },
+    {
+      "key": "glaze",
+      "itemId": 49759,
+      "name": "Thundersteeping Glaze",
+      "bookIndex": 2,
+      "bookCount": 3
+    },
+    {
+      "key": "solvent",
+      "itemId": 49757,
+      "name": "Thundersteeped Solvent",
+      "bookIndex": 3,
+      "bookCount": 4
+    }
+  ],
+  "slots": {
+    "mainHand": {
+      "_note": "BIS weapon always uses the upgrade path (tome + solvent). No coffer needed.",
+      "raidItemId": 0,
+      "cofferItemId": 0,
+      "bookIndex": 4,
+      "bookCount": 8,
+      "currencyItemId": 0,
+      "tomeCost": 500,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "solvent"
+    },
+    "offHand": {
+      "_note": "Paladin shield only. Acquired together with mainHand — cannot be purchased separately."
+    },
+    "head": {
+      "raidItemId": 0,
+      "cofferItemId": 49739,
+      "bookIndex": 2,
+      "bookCount": 4,
+      "currencyItemId": 0,
+      "tomeCost": 495,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "twine"
+    },
+    "chest": {
+      "_guess": "cofferItemId 49740 guessed — sequential from head (49739)",
+      "raidItemId": 0,
+      "cofferItemId": 49740,
+      "bookIndex": 3,
+      "bookCount": 6,
+      "currencyItemId": 0,
+      "tomeCost": 825,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "twine"
+    },
+    "gloves": {
+      "_guess": "cofferItemId 49741 guessed — sequential from head (49739)",
+      "raidItemId": 0,
+      "cofferItemId": 49741,
+      "bookIndex": 2,
+      "bookCount": 4,
+      "currencyItemId": 0,
+      "tomeCost": 495,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "twine"
+    },
+    "legs": {
+      "_guess": "cofferItemId 49742 guessed — sequential from head (49739)",
+      "raidItemId": 0,
+      "cofferItemId": 49742,
+      "bookIndex": 3,
+      "bookCount": 6,
+      "currencyItemId": 0,
+      "tomeCost": 825,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "twine"
+    },
+    "feet": {
+      "raidItemId": 0,
+      "cofferItemId": 49743,
+      "bookIndex": 2,
+      "bookCount": 4,
+      "currencyItemId": 0,
+      "tomeCost": 495,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "twine"
+    },
+    "earRings": {
+      "_guess": "cofferItemId 49744 guessed — sequential from necklace (49745)",
+      "raidItemId": 0,
+      "cofferItemId": 49744,
+      "bookIndex": 1,
+      "bookCount": 3,
+      "currencyItemId": 0,
+      "tomeCost": 375,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "glaze"
+    },
+    "necklace": {
+      "raidItemId": 0,
+      "cofferItemId": 49745,
+      "bookIndex": 1,
+      "bookCount": 3,
+      "currencyItemId": 0,
+      "tomeCost": 375,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "glaze"
+    },
+    "bracelet": {
+      "_guess": "cofferItemId 49746 guessed — sequential between necklace (49745) and ring (49747)",
+      "raidItemId": 0,
+      "cofferItemId": 49746,
+      "bookIndex": 1,
+      "bookCount": 3,
+      "currencyItemId": 0,
+      "tomeCost": 375,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "glaze"
+    },
+    "ring1": {
+      "_note": "ring1 and ring2 are the not the same in-game item. one is tome and other will be raid",
+      "raidItemId": 0,
+      "cofferItemId": 49747,
+      "bookIndex": 1,
+      "bookCount": 3,
+      "currencyItemId": 0,
+      "tomeCost": 375,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "glaze"
+    },
+    "ring2": {
+      "raidItemId": 0,
+      "cofferItemId": 49747,
+      "bookIndex": 1,
+      "bookCount": 3,
+      "currencyItemId": 0,
+      "tomeCost": 375,
+      "upgradeItemId": 0,
+      "upgradeMaterialKey": "glaze"
+    }
+  }
+}

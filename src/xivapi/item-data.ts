@@ -27,12 +27,20 @@ export interface ItemData {
 }
 
 const cache = new Map<number, Promise<ItemData>>();
+const resolved = new Map<number, ItemData>();
 
 export function fetchItemData(itemId: number): Promise<ItemData> {
   if (!cache.has(itemId)) {
-    cache.set(itemId, fetchFromXivapi(itemId));
+    const p = fetchFromXivapi(itemId);
+    cache.set(itemId, p);
+    void p.then(data => resolved.set(itemId, data));
   }
   return cache.get(itemId)!;
+}
+
+/** Returns the cached ItemData synchronously if already fetched, otherwise undefined. */
+export function peekItemData(itemId: number): ItemData | undefined {
+  return resolved.get(itemId);
 }
 
 function fallback(itemId: number): ItemData {

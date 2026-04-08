@@ -12,6 +12,9 @@ out/
 # Generated data
 data/
 
+# Debug log files (keep the logs/ dir itself)
+logs/*.jsonl
+
 # Environment
 .env
 .env.local

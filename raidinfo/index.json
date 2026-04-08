@@ -1,0 +1,10 @@
+{
+  "activeTier": "aac_hw",
+  "tiers": [
+    {
+      "key": "aac_hw",
+      "label": "AAC Heavyweight",
+      "fullName": "Arcadion: The Ascension Arcadia Championship — Heavyweight (HW)"
+    }
+  ]
+}

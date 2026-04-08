@@ -5,8 +5,25 @@ import type { EquipmentPiece, GearSnapshot, InventoryItem, InventorySnapshot, Sl
 import { resolveMateriaItemId, type MateriaLookup } from './materia.ts';
 import { fetchItemData } from '../xivapi/item-data.ts'; // only uses canOvermeld + materiaSlots
 
-/** Container IDs for player bags (0–3) and currency/crystals (2000). */
-const INVENTORY_CONTAINERS = new Set([0, 1, 2, 3, 2000]);
+/**
+ * Container IDs tracked for inventory purposes:
+ * - Player bags (0–3) and currency/crystals (2000–2001)
+ * - Armory chest slots (3200–3500) — needed to detect 780 base pieces for upgrade paths
+ */
+const INVENTORY_CONTAINERS = new Set([
+  // Player bags
+  0, 1, 2, 3,
+  // Currency & crystals
+  2000, 2001,
+  // Armory chest (off-hand, head, body, hand, waist, legs, feet, neck, ear, wrist)
+  3200, 3201, 3202, 3203, 3204, 3205, 3206, 3207, 3208, 3209,
+  // Armory rings
+  3300,
+  // Armory soul crystals
+  3400,
+  // Armory main hand
+  3500,
+]);
 
 /** Extract the decoded packet fields from a raw pcap Message. */
 function parsedIpcData(msg: Message): Record<string, unknown> | undefined {

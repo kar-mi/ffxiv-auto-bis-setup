@@ -1,10 +1,18 @@
 import path from "path";
+import { readFile } from "node:fs/promises";
 import type { GearSnapshot, InventorySnapshot } from "../types.ts";
-import { fetchItemData } from "../xivapi/item-data.ts";
+import { fetchItemData, peekItemData } from "../xivapi/item-data.ts";
 import { getBisSet, fetchSetNames, resolveSetIndex } from "../bis/xivgear.ts";
 import { compareGear } from "../bis/comparison.ts";
 import { fetchBisLinks } from "../bis/balance.ts";
 import { computeNeeds } from "../bis/needs.ts";
+import { loadGearAcquisitionMap } from "../acquisition/loader.ts";
+import { computeAcquisition } from "../acquisition/compute.ts";
+import { logInventorySnapshot, INVENTORY_LOG_ENABLED } from "../debug/inventory-log.ts";
+import { parseItemOdr, buildPosMap } from "../dat/itemodr.ts";
+import { getFfxivDataDir, findItemodrPath } from "../dat/finder.ts";
+
+const PROJECT_ROOT = path.join(import.meta.dir, "..", "..");
 
 
 let latestPcapGear: GearSnapshot | null = null;
@@ -24,6 +32,7 @@ export function getLatestInventory(): InventorySnapshot | null {
 
 export function setLatestInventory(snapshot: InventorySnapshot): void {
   latestInventory = snapshot;
+  void logInventorySnapshot(snapshot);
 }
 
 interface WindowControls {
@@ -313,6 +322,126 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
           const bisSet = await getBisSet(xivgearUrl, setIndex);
           const comparison = compareGear(gear, bisSet);
           return json(computeNeeds(comparison, bisSet, getLatestInventory()));
+        } catch (e) {
+          return json({ error: String(e) }, 502);
+        }
+      }
+
+      // GET /debug/inventory
+      //   Returns the current inventory snapshot grouped by container and sorted
+      //   in the same visual order the player sees in-game, using ITEMODR.DAT.
+      //   One entry per occupied slot; location is 1-based visual position.
+      //   Names are resolved from the in-process XIVAPI cache (no network call).
+      //
+      //   Response: { odrLoaded, capturedAt?, byContainer: { [label]: Item[] } }
+      //     Item: { itemId, quantity, hq, location, name? }
+      if (pathname === "/debug/inventory" && req.method === "GET") {
+        const inv = getLatestInventory();
+        if (!inv) return json({ odrLoaded: false, byContainer: {} });
+
+        // Load ITEMODR.DAT fresh on each call so moves are reflected immediately
+        let posMap = new Map<string, number>();
+        let odrLoaded = false;
+        try {
+          const datPath = await findItemodrPath(getFfxivDataDir());
+          if (datPath) {
+            const buf = await readFile(datPath);
+            posMap = buildPosMap(parseItemOdr(buf as unknown as Buffer));
+            odrLoaded = true;
+          }
+        } catch (err) {
+          console.warn("[debug] ITEMODR.DAT load failed:", err);
+        }
+
+        // Container id → display group label
+        const CONTAINER_GROUP: Record<number, string> = {
+          0: "Bags", 1: "Bags", 2: "Bags", 3: "Bags",
+          2000: "Currency", 2001: "Crystals",
+          3500: "Armory: Main-hand", 3200: "Armory: Off-hand",
+          3201: "Armory: Head",  3202: "Armory: Body",  3203: "Armory: Hands",
+          3205: "Armory: Legs",  3206: "Armory: Feet",
+          3207: "Armory: Neck",  3208: "Armory: Ears",  3209: "Armory: Wrists",
+          3300: "Armory: Rings", 3400: "Armory: Soul Crystal",
+        };
+
+        // Preferred display order for groups
+        const GROUP_ORDER = [
+          "Bags", "Currency", "Crystals",
+          "Armory: Main-hand", "Armory: Off-hand",
+          "Armory: Head", "Armory: Body", "Armory: Hands",
+          "Armory: Legs", "Armory: Feet",
+          "Armory: Neck", "Armory: Ears", "Armory: Wrists",
+          "Armory: Rings", "Armory: Soul Crystal",
+        ];
+
+        // Build one display entry per slot — no aggregation, so location is exact.
+        // location is 1-based visual position from ODR (null when ODR not loaded).
+        type DisplayEntry = {
+          group: string; itemId: number; quantity: number; hq: boolean; location: number | null;
+        };
+        const entries: DisplayEntry[] = inv.items.map(item => {
+          const group = CONTAINER_GROUP[item.containerId] ?? `Container ${item.containerId}`;
+          const rawPos = posMap.get(`${item.containerId}:${item.slot}`);
+          return {
+            group,
+            itemId: item.itemId,
+            quantity: item.quantity,
+            hq: item.hq,
+            location: rawPos !== undefined ? rawPos + 1 : null,
+          };
+        });
+
+        // Sort by group order, then by location (null locations go to end)
+        entries.sort((a, b) => {
+          const gi = GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group);
+          if (gi !== 0) return gi;
+          if (a.location === null && b.location === null) return 0;
+          if (a.location === null) return 1;
+          if (b.location === null) return -1;
+          return a.location - b.location;
+        });
+
+        const byContainer: Record<string, unknown[]> = {};
+        for (const entry of entries) {
+          if (!byContainer[entry.group]) byContainer[entry.group] = [];
+          const name = peekItemData(entry.itemId)?.name;
+          byContainer[entry.group].push({ itemId: entry.itemId, quantity: entry.quantity, hq: entry.hq, location: entry.location, name });
+        }
+
+        return json({
+          odrLoaded,
+          logFile: INVENTORY_LOG_ENABLED ? "logs/inventory.jsonl" : null,
+          capturedAt: inv.capturedAt,
+          byContainer,
+        });
+      }
+
+      // GET /acquisition?url=&set=
+      //   Returns acquisition paths (coffer, books, upgrade) for each slot
+      //   that still needs to be obtained, cross-referenced against the current
+      //   inventory (bags + armory).  Returns 409 if no gear has been captured.
+      //
+      //   Response: SlotAcquisitionStatus[]
+      //     [{
+      //       slot, bisItemId, canAcquireNow,
+      //       coffer?: { coffer: ItemCount, available },
+      //       books?:  { book: ItemCount, available },
+      //       upgrade?: { upgradeItemId, base: BaseItemStatus, material: UpgradeMaterialStatus, available }
+      //     }]
+      if (pathname === "/acquisition" && req.method === "GET") {
+        const params = new URL(req.url).searchParams;
+        const xivgearUrl = params.get("url");
+        if (!xivgearUrl) return json({ error: "Missing ?url= parameter" }, 400);
+        const gear = getLatestPcapGear();
+        if (!gear) return json({ error: "No packet-captured gear available yet" }, 409);
+        const setParam = params.get("set") ?? undefined;
+        try {
+          const setIndex = await resolveSetIndex(xivgearUrl, setParam);
+          const bisSet = await getBisSet(xivgearUrl, setIndex);
+          const comparison = compareGear(gear, bisSet);
+          const gearNeeds = computeNeeds(comparison, bisSet, getLatestInventory());
+          const acquisitionMap = await loadGearAcquisitionMap(PROJECT_ROOT);
+          return json(computeAcquisition(gearNeeds, acquisitionMap, getLatestInventory()));
         } catch (e) {
           return json({ error: String(e) }, 502);
         }

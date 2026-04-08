@@ -175,3 +175,10 @@ item ids
 
 49745 - necklace coffer
 49747 - ring coffer
+```
+
+currency ids
+```
+1 - gil
+48 - allagan tomestone of mathematics - old currency (not used for gear)
+49 - allagan tomestone of mnemonics - current raid tomestone currency

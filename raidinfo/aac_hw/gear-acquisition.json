@@ -2,7 +2,7 @@
   "_note": "Item IDs of 0 = not yet identified. bookIndex is 0-based into the books array (0=Edition1 … 3=Edition4). upgradeMaterialKey must match a key in upgradeMaterials.",
   "_gapNote": "49762 is unidentified — falls between book 2 (49761) and book 3 (49763). May be a weapon token or unrelated item.",
   "label": "AAC HW (ilvl 790)",
-  "tomeId": 0,
+  "tomeId": 49,
   "tomeName": "Allagan Tomestone of Aesthetics",
   "books": [
     { "itemId": 49760, "name": "AAC Illustrated: HW Edition 1" },

@@ -28,7 +28,7 @@ try {
 
 // Run the HTTP server in-process — we're already in Bun
 const projectRoot = findProjectRoot(import.meta.dir);
-startServer(SERVER_PORT, path.join(projectRoot, "public"));
+startServer(SERVER_PORT, path.join(projectRoot, "public"), projectRoot);
 
 // Open the desktop window
 const win = new BrowserWindow({

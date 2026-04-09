@@ -69,6 +69,7 @@ let currentItemDataMap = new Map(); // item data for equipped gear
 let comparisonData = null;       // GearsetComparison | null
 let currentBisSet = null;        // BisGearSet | null
 let bisItemDataMap = new Map();  // item data for BIS items
+let acquisitionData = null;      // SlotAcquisitionStatus[] | null
 let currentJobKey = null;        // "role/job" slug, to avoid re-fetching BIS links on same job
 
 // ---- DOM helpers --------------------------------------------------------
@@ -225,6 +226,183 @@ function renderGearItem(slot, piece, itemDataMap, slotComp) {
     </div>`;
 }
 
+// ---- Acquisition panel --------------------------------------------------
+
+function renderAcquisitionPanel() {
+  const panel = el("acquisition-panel");
+  if (!acquisitionData || acquisitionData.length === 0) {
+    panel.classList.add("hidden");
+    return;
+  }
+
+  const canNow = acquisitionData.filter(s => s.canAcquireNow).length;
+  const total = acquisitionData.length;
+  el("acquisition-summary").innerHTML =
+    `<span class="text-gray-300">${total} slot${total !== 1 ? "s" : ""} need a new item</span>` +
+    (canNow > 0 ? `<span class="ml-2 text-green-400">&mdash; ${canNow} can acquire now</span>` : "");
+
+  el("acquisition-list").innerHTML = acquisitionData.map(s => {
+    const label = SLOT_LABELS[s.slot] ?? s.slot;
+    const pills = [];
+
+    if (s.coffer) {
+      const ok = s.coffer.available;
+      pills.push(pill(ok ? "Coffer ready" : "Coffer", ok));
+    }
+    if (s.books) {
+      const ok = s.books.available;
+      pills.push(pill(ok ? "Books ready" : `Books ${s.books.book.have}/${s.books.book.need}`, ok));
+    }
+    if (s.upgrade) {
+      const ok = s.upgrade.available;
+      pills.push(pill(ok ? "Upgrade ready" : "Upgrade", ok));
+    }
+    if (pills.length === 0) {
+      pills.push(`<span class="text-[10px] text-gray-600 italic">No data yet</span>`);
+    }
+
+    return `
+      <div class="flex items-center gap-3 bg-ffxiv-panel border border-ffxiv-border rounded px-3 py-2 cursor-pointer hover:border-ffxiv-gold transition-colors" data-acq-slot="${s.slot}">
+        <span class="text-xs text-gray-300 w-20 flex-shrink-0">${label}</span>
+        <div class="flex gap-1.5 flex-wrap">${pills.join("")}</div>
+      </div>`;
+  }).join("");
+
+  // Clicking a row opens the compare modal for that slot
+  panel.querySelectorAll("[data-acq-slot]").forEach(row => {
+    row.addEventListener("click", () => openCompareModal(row.dataset.acqSlot));
+  });
+
+  panel.classList.remove("hidden");
+}
+
+function pill(text, ready) {
+  const cls = ready
+    ? "bg-green-900/60 text-green-300 border-green-700"
+    : "bg-ffxiv-dark text-gray-400 border-ffxiv-border";
+  return `<span class="px-1.5 py-0.5 text-[10px] border rounded ${cls}">${text}</span>`;
+}
+
+// ---- Modal acquisition text ---------------------------------------------
+
+function materiaSetDiff(equipped, bis) {
+  const count = ids => {
+    const m = new Map();
+    for (const id of ids) if (id !== 0) m.set(id, (m.get(id) ?? 0) + 1);
+    return m;
+  };
+  const eq = count(equipped);
+  const bm = count(bis);
+  const toAdd = [], toRemove = [];
+  for (const [id, need] of bm) {
+    const have = eq.get(id) ?? 0;
+    for (let i = have; i < need; i++) toAdd.push(id);
+  }
+  for (const [id, have] of eq) {
+    const need = bm.get(id) ?? 0;
+    for (let i = need; i < have; i++) toRemove.push(id);
+  }
+  return { toAdd, toRemove };
+}
+
+function renderMateriaAdvice(slotComp, itemDataMap) {
+  const equipped = slotComp.equippedMaterias ?? [];
+  const bis = slotComp.bisMaterias ?? [];
+  const { toAdd, toRemove } = materiaSetDiff(equipped, bis);
+  const parts = [];
+
+  if (toRemove.length > 0) {
+    parts.push(`<p class="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-1">Remove</p>`);
+    for (const id of toRemove) {
+      const name = itemDataMap.get(id)?.name ?? `Materia #${id}`;
+      parts.push(`<p class="text-xs text-red-400">&minus; ${name}</p>`);
+    }
+  }
+  if (toAdd.length > 0) {
+    if (toRemove.length > 0) parts.push(`<div class="h-2"></div>`);
+    parts.push(`<p class="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-1">Add</p>`);
+    for (const id of toAdd) {
+      const name = itemDataMap.get(id)?.name ?? `Materia #${id}`;
+      parts.push(`<p class="text-xs text-green-400">+ ${name}</p>`);
+    }
+  }
+
+  const bisCount = bis.filter(id => id !== 0).length;
+  if (bisCount > 2) {
+    parts.push(`<p class="text-[10px] text-yellow-600 mt-2">${bisCount - 2} overmeld slot${bisCount - 2 !== 1 ? "s" : ""} required &mdash; success is not guaranteed.</p>`);
+  }
+
+  return parts.join("");
+}
+
+function renderAcquisitionAdvice(s, itemDataMap) {
+  const name = id => itemDataMap.get(id)?.name;
+  const sections = [];
+
+  if (s.coffer) {
+    const { coffer, available } = s.coffer;
+    const cofferName = name(coffer.itemId) ?? coffer.name;
+    sections.push(adviceBlock(
+      "Coffer", available,
+      available
+        ? `You have the <strong>${cofferName}</strong> in your bags — open it to get this piece.`
+        : `Need the <strong>${cofferName}</strong>. Drops from savage raid.`,
+    ));
+  }
+
+  if (s.books) {
+    const { book, available } = s.books;
+    const bookName = name(book.itemId) ?? book.name;
+    sections.push(adviceBlock(
+      "Books", available,
+      available
+        ? `Trade ${book.need}&times; <strong>${bookName}</strong> at the vendor (you have ${book.have}).`
+        : `Need ${book.need}&times; <strong>${bookName}</strong> to buy the raid piece (have ${book.have}).`,
+    ));
+  }
+
+  if (s.upgrade) {
+    const { base, material, available } = s.upgrade;
+    const tomeName  = name(base.tomes.itemId)            ?? base.tomes.name;
+    const matName   = name(material.material.itemId)     ?? material.material.name;
+    const bookName  = name(material.bookCost.book.itemId) ?? material.bookCost.book.name;
+
+    let detail = "";
+    if (base.haveBase) {
+      detail += `You have the 780 base piece. `;
+    } else if (base.canBuyWithTomes) {
+      detail += `Buy the 780 base with <strong>${base.tomes.need} ${tomeName}</strong> (have ${base.tomes.have}). `;
+    } else {
+      detail += `Need <strong>${base.tomes.need} ${tomeName}</strong> for the 780 base (have ${base.tomes.have}). `;
+    }
+
+    if (material.available) {
+      detail += `<strong>${matName}</strong> is in your bags &mdash; ready to upgrade at the vendor.`;
+    } else if (material.bookCost.available) {
+      const bc = material.bookCost;
+      detail += `Trade ${bc.book.need}&times; <strong>${bookName}</strong> for <strong>${matName}</strong> (have ${bc.book.have}).`;
+    } else {
+      const bc = material.bookCost;
+      detail += `Need <strong>${matName}</strong> &mdash; costs ${bc.book.need}&times; <strong>${bookName}</strong> (have ${bc.book.have}).`;
+    }
+
+    sections.push(adviceBlock("Upgrade", available, detail));
+  }
+
+  return sections.length > 0
+    ? sections.join("")
+    : `<p class="text-xs text-gray-500 italic">No acquisition data for this slot yet.</p>`;
+}
+
+function adviceBlock(label, ready, html) {
+  const labelColor = ready ? "text-green-400" : "text-gray-500";
+  return `
+    <div>
+      <p class="text-[10px] ${labelColor} uppercase tracking-wide font-semibold mb-1">${label}</p>
+      <p class="text-xs text-gray-300 leading-relaxed">${html}</p>
+    </div>`;
+}
+
 // ---- Modal --------------------------------------------------------------
 
 function renderModalItemColumn(heading, piece, bisItem, itemDataMap, status) {
@@ -285,6 +463,17 @@ function openCompareModal(slot) {
     <div class="w-px bg-ffxiv-border flex-shrink-0"></div>
     ${renderModalItemColumn("BIS", bisPiece, equipped, merged, slotComp.status)}
   `;
+
+  const acqEl = el("modal-acquisition");
+  if (slotComp.status === "wrong-materia") {
+    acqEl.innerHTML = renderMateriaAdvice(slotComp, merged);
+    acqEl.classList.remove("hidden");
+  } else {
+    const slotAcq = acquisitionData?.find(s => s.slot === slot) ?? null;
+    acqEl.innerHTML = renderAcquisitionAdvice(slotAcq ?? { coffer: null, books: null, upgrade: null }, merged);
+    acqEl.classList.remove("hidden");
+  }
+
   el("compare-modal").classList.remove("hidden");
 }
 
@@ -387,11 +576,12 @@ async function runComparison() {
   if (!url) return;
 
   setStatus("Comparing gear...");
-  let compRes, bisRes;
+  let compRes, bisRes, acqRes;
   try {
-    [compRes, bisRes] = await Promise.all([
+    [compRes, bisRes, acqRes] = await Promise.all([
       fetch(`${API_BASE}/compare?url=${encodeURIComponent(url)}`),
       fetch(`${API_BASE}/bis?url=${encodeURIComponent(url)}`),
+      fetch(`${API_BASE}/acquisition?url=${encodeURIComponent(url)}`),
     ]);
   } catch (err) {
     logger.error(err, "[app] comparison fetch failed");
@@ -412,6 +602,14 @@ async function runComparison() {
 
   comparisonData = await compRes.json();
   currentBisSet  = await bisRes.json();
+  if (acqRes.ok) {
+    acquisitionData = await acqRes.json();
+    logger.debug({ count: acquisitionData.length, slots: acquisitionData.map(s => s.slot) }, "[app] acquisition data received");
+  } else {
+    const errBody = await acqRes.json().catch(() => null);
+    logger.warn({ status: acqRes.status, body: errBody }, "[app] acquisition fetch failed");
+    acquisitionData = null;
+  }
 
   // Pre-fetch item data for all BIS items
   const bisIds = new Set();
@@ -425,6 +623,7 @@ async function runComparison() {
   clearStatus();
   el("btn-clear-compare").classList.remove("hidden");
   renderGear();
+  renderAcquisitionPanel();
 }
 
 // ---- BIS selector -------------------------------------------------------
@@ -490,13 +689,15 @@ function onBisLinkChange() {
 }
 
 function clearComparison() {
-  comparisonData = null;
-  currentBisSet  = null;
-  bisItemDataMap = new Map();
-  currentJobKey  = null;
+  comparisonData  = null;
+  currentBisSet   = null;
+  bisItemDataMap  = new Map();
+  acquisitionData = null;
+  currentJobKey   = null;
   el("bis-link-wrap").classList.add("hidden");
   el("btn-compare").classList.add("hidden");
   el("btn-clear-compare").classList.add("hidden");
+  el("acquisition-panel").classList.add("hidden");
   el("sel-bis-link").innerHTML = `<option value="">— Select —</option>`;
   renderGear();
 }

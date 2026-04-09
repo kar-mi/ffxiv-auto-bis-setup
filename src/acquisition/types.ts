@@ -17,20 +17,14 @@ export interface UpgradeMaterialDef {
 
 /** Acquisition data for one gear slot in the JSON mapping file. */
 export interface SlotAcquisition {
-  /** 790 raid piece (from coffer or book exchange). 0 = not yet filled. */
-  raidItemId: number;
   /** Coffer item that can be opened for this slot's raid piece. 0 = not yet filled. */
   cofferItemId: number;
   /** 0-based index into GearAcquisitionMap.books for the book→raid-piece exchange. */
   bookIndex: number;
   /** Number of books needed to buy the raid piece. */
   bookCount: number;
-  /** 780 tomestone-currency item (upgrade input). 0 = not yet filled. */
-  currencyItemId: number;
   /** Tomestone cost for the 780 base item. */
   tomeCost: number;
-  /** 790 upgraded currency item (upgrade output). 0 = not yet filled. */
-  upgradeItemId: number;
   /** Must match a key in GearAcquisitionMap.upgradeMaterials. */
   upgradeMaterialKey: string;
 }
@@ -40,6 +34,10 @@ export interface GearAcquisitionMap {
   /** Tomestone item ID (e.g., Allagan Tomestone of Aesthetics). 0 = placeholder. */
   tomeId: number;
   tomeName: string;
+  /** Offset subtracted from upgradeItemId to derive the 780 base tome item ID. */
+  upgradeOffset: number;
+  /** iLevel of the base tome piece (e.g. 780). Used to confirm a BIS item is an upgrade-path piece. */
+  baseILevel: number;
   books: BookDef[];
   upgradeMaterials: UpgradeMaterialDef[];
   /** Keyed by SlotName string. Missing slots are unknown/not tracked. */

@@ -12,7 +12,8 @@ import { logInventorySnapshot, INVENTORY_LOG_ENABLED } from "../debug/inventory-
 import { parseItemOdr, buildPosMap } from "../dat/itemodr.ts";
 import { getFfxivDataDir, findItemodrPath } from "../dat/finder.ts";
 
-const PROJECT_ROOT = path.join(import.meta.dir, "..", "..");
+// Overridden at runtime by startServer() when called from the desktop entry.
+let PROJECT_ROOT = path.join(import.meta.dir, "..", "..");
 
 
 let latestPcapGear: GearSnapshot | null = null;
@@ -74,7 +75,8 @@ async function serveStatic(pathname: string, publicDir: string): Promise<Respons
   return new Response(file);
 }
 
-export function startServer(port = 3000, publicDir = path.join(import.meta.dir, "..", "..", "public")): ReturnType<typeof Bun.serve> {
+export function startServer(port = 3000, publicDir = path.join(import.meta.dir, "..", "..", "public"), projectRoot?: string): ReturnType<typeof Bun.serve> {
+  if (projectRoot) PROJECT_ROOT = projectRoot;
   const server = Bun.serve({
     port,
     async fetch(req) {
@@ -441,7 +443,22 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
           const comparison = compareGear(gear, bisSet);
           const gearNeeds = computeNeeds(comparison, bisSet, getLatestInventory());
           const acquisitionMap = await loadGearAcquisitionMap(PROJECT_ROOT);
-          return json(computeAcquisition(gearNeeds, acquisitionMap, getLatestInventory()));
+
+          // Determine which slots are upgrade-path (tome piece) vs raid-path.
+          // A BIS item is an upgraded tome piece if (bisItemId - upgradeOffset)
+          // resolves to a valid item at the base iLevel (e.g. 780).
+          const upgradeBisIds = new Set<number>();
+          await Promise.all(gearNeeds.itemNeeds.map(async need => {
+            const baseId = need.bisItemId - acquisitionMap.upgradeOffset;
+            if (baseId > 0) {
+              const data = await fetchItemData(baseId);
+              if (data.itemLevel === acquisitionMap.baseILevel) {
+                upgradeBisIds.add(need.bisItemId);
+              }
+            }
+          }));
+
+          return json(computeAcquisition(gearNeeds, acquisitionMap, getLatestInventory(), upgradeBisIds));
         } catch (e) {
           return json({ error: String(e) }, 502);
         }

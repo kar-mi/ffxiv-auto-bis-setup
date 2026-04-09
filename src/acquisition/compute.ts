@@ -33,11 +33,16 @@ function itemCount(counts: Map<number, number>, itemId: number, name: string, ne
 /**
  * For each slot in `needs.itemNeeds`, compute all acquisition paths and
  * cross-reference them against the current inventory.
+ *
+ * `upgradeBisIds` — set of bisItemIds confirmed (via XIVAPI iLevel check) to be
+ * upgraded tome pieces. Those slots show only the upgrade path; all others show
+ * only the coffer/books raid path.
  */
 export function computeAcquisition(
   needs: GearNeeds,
   map: GearAcquisitionMap,
   inventory: InventorySnapshot | null,
+  upgradeBisIds: Set<number> = new Set(),
 ): SlotAcquisitionStatus[] {
   const counts = buildCounts(inventory);
 
@@ -54,29 +59,33 @@ export function computeAcquisition(
       };
     }
 
+    const isUpgradePath = upgradeBisIds.has(need.bisItemId);
+
     // bookIndex >= books.length is a sentinel meaning "no book exchange" (e.g. weapon).
     const book = slotAcq.bookIndex < map.books.length ? (map.books[slotAcq.bookIndex] ?? null) : null;
     const upgMat = map.upgradeMaterials.find(m => m.key === slotAcq.upgradeMaterialKey) ?? null;
     const upgMatBook = upgMat ? (map.books[upgMat.bookIndex] ?? null) : null;
 
-    // ---- Coffer ----
-    const coffer: CofferStatus | null = slotAcq.cofferItemId !== 0 ? (() => {
+    // ---- Coffer (raid path only) ----
+    const coffer: CofferStatus | null = (!isUpgradePath && slotAcq.cofferItemId !== 0) ? (() => {
       const ic = itemCount(counts, slotAcq.cofferItemId, `Coffer`, 1);
       return { coffer: ic, available: ic.have >= 1 };
     })() : null;
 
-    // ---- Books → raid piece ----
-    const books: BookExchangeStatus | null = (book && book.itemId !== 0) ? (() => {
+    // ---- Books → raid piece (raid path only) ----
+    const books: BookExchangeStatus | null = (!isUpgradePath && book && book.itemId !== 0) ? (() => {
       const ic = itemCount(counts, book.itemId, book.name, slotAcq.bookCount);
       return { book: ic, available: ic.have >= slotAcq.bookCount };
     })() : null;
 
     // ---- Upgrade path (780 base + material → 790) ----
-    const hasUpgradeData = slotAcq.currencyItemId !== 0 || slotAcq.upgradeItemId !== 0;
+    // bisItemId IS the upgradeItemId for upgrade-path slots.
+    const hasUpgradeData = isUpgradePath;
     const upgrade: UpgradePathStatus | null = hasUpgradeData ? (() => {
+      const baseItemId = need.bisItemId - map.upgradeOffset;
       const base: BaseItemStatus = {
-        baseItem: itemCount(counts, slotAcq.currencyItemId, `780 base (${need.slot})`, 1),
-        haveBase: qty(counts, slotAcq.currencyItemId) >= 1,
+        baseItem: itemCount(counts, baseItemId, `780 base (${need.slot})`, 1),
+        haveBase: qty(counts, baseItemId) >= 1,
         tomes: itemCount(counts, map.tomeId, map.tomeName, slotAcq.tomeCost),
         canBuyWithTomes: qty(counts, map.tomeId) >= slotAcq.tomeCost,
       };
@@ -98,7 +107,7 @@ export function computeAcquisition(
         (base.haveBase || base.canBuyWithTomes) &&
         (material.available || material.bookCost.available);
 
-      return { upgradeItemId: slotAcq.upgradeItemId, base, material, available };
+      return { upgradeItemId: need.bisItemId, base, material, available };
     })() : null;
 
     const canAcquireNow =

@@ -1226,3 +1226,15 @@ document.addEventListener("pointerup", () => {
 });
 
 loadGear();
+
+// ---- Settings modal ----
+const settingsModal = document.getElementById("settings-modal");
+document.getElementById("btn-settings").addEventListener("click", () => {
+  settingsModal.classList.remove("hidden");
+});
+document.getElementById("settings-modal-close").addEventListener("click", () => {
+  settingsModal.classList.add("hidden");
+});
+settingsModal.addEventListener("click", (e) => {
+  if (e.target === settingsModal) settingsModal.classList.add("hidden");
+});

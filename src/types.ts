@@ -78,6 +78,37 @@ export interface BisLink {
   url: string;
 }
 
+// ---- BIS catalog types ------------------------------------------------------
+
+export type RaidTier = 'aac_lw' | 'aac_mw' | 'aac_hw' | 'ultimate' | 'criterion' | 'other';
+
+export const RAID_TIER_LABELS: Record<RaidTier, string> = {
+  aac_lw:    'AAC Light-heavyweight (M1\u2013M4)',
+  aac_mw:    'AAC Middleweight (M5\u2013M8)',
+  aac_hw:    'AAC Heavyweight (M9\u2013M12)',
+  ultimate:  'Ultimate',
+  criterion: 'Criterion',
+  other:     'Other',
+};
+
+/** A BIS set saved locally to the catalog. */
+export interface LocalBisEntry {
+  /** Stable key derived from the xivgear page slug + set index, e.g. `"bis_war_current_0"`. */
+  id: string;
+  /** Canonical xivgear.app URL with `selectedIndex` baked in. */
+  url: string;
+  setIndex: number;
+  savedAt: string;
+  set: BisGearSet;
+  raidTier: RaidTier;
+}
+
+export interface BisCatalog {
+  sets: LocalBisEntry[];
+  /** Keyed by uppercase job abbreviation (e.g. `"WAR"`). Value is `LocalBisEntry.id`. */
+  preferences: Record<string, string>;
+}
+
 // ---- Inventory types --------------------------------------------------------
 
 /** A single item stack in a player inventory container. */

@@ -105,7 +105,7 @@
         </div>
 
         <!-- BIS comparison controls -->
-        <div id="bis-controls" class="mb-6 flex flex-wrap items-end gap-3">
+        <div id="bis-controls" class="mb-4 flex flex-wrap items-end gap-3">
           <div id="bis-link-wrap" class="flex flex-col gap-1 hidden">
             <label class="text-[10px] text-gray-500 uppercase tracking-wide">BIS Set</label>
             <select id="sel-bis-link" class="bg-ffxiv-panel border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold">
@@ -115,10 +115,14 @@
           <button id="btn-compare" class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors hidden">
             Compare
           </button>
+          <button id="btn-add-set" class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-400 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors">
+            Add Set
+          </button>
           <button id="btn-clear-compare" class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-400 hover:text-gray-200 transition-colors hidden">
             Clear
           </button>
         </div>
+
 
         <!-- Status message -->
         <p id="status" class="text-sm text-gray-400 mb-6 hidden"></p>
@@ -136,6 +140,74 @@
           <div id="acquisition-list" class="space-y-2"></div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- Add BIS Set modal -->
+    <div id="add-set-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
+      <div class="bg-ffxiv-panel border border-ffxiv-border rounded-xl w-[420px] max-w-[92vw] max-h-[85vh] overflow-y-auto p-5 relative shadow-xl">
+        <button id="add-set-modal-close" class="absolute top-3 right-3 text-gray-500 hover:text-gray-200 text-lg leading-none">&#x2715;</button>
+        <h2 class="text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4">Add BIS Set</h2>
+
+        <!-- Tab switcher -->
+        <div class="flex gap-0 border-b border-ffxiv-border mb-4">
+          <button id="tab-btn-manual"
+            class="px-3 pb-2 text-xs text-gray-200 border-b-2 border-ffxiv-gold -mb-px"
+            data-tab="manual">Paste URL</button>
+          <button id="tab-btn-balance"
+            class="px-3 pb-2 text-xs text-gray-500 border-b-2 border-transparent -mb-px hover:text-gray-300 transition-colors"
+            data-tab="balance">The Balance</button>
+        </div>
+
+        <!-- Paste URL panel -->
+        <div id="tab-panel-manual" class="flex flex-col gap-3">
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] text-gray-500 uppercase tracking-wide">xivgear.app URL</label>
+            <input id="input-xivgear-url" type="text"
+              placeholder="https://xivgear.app/?page=bis|war|current&amp;selectedIndex=0"
+              class="bg-ffxiv-dark border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold w-full" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] text-gray-500 uppercase tracking-wide">Raid Tier</label>
+            <select id="sel-manual-tier" class="bg-ffxiv-dark border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold">
+              <option value="aac_hw">AAC Heavyweight (M9&ndash;M12)</option>
+              <option value="aac_mw">AAC Middleweight (M5&ndash;M8)</option>
+              <option value="aac_lw">AAC Light-heavyweight (M1&ndash;M4)</option>
+              <option value="ultimate">Ultimate</option>
+              <option value="criterion">Criterion</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" id="chk-manual-default" checked class="accent-ffxiv-gold w-3 h-3" />
+            <span class="text-xs text-gray-300">Set as default for this job</span>
+          </label>
+          <button id="btn-manual-add"
+            class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-gold text-ffxiv-gold hover:bg-ffxiv-gold/10 transition-colors">
+            Add Set
+          </button>
+          <p id="manual-add-status" class="text-xs hidden"></p>
+        </div>
+
+        <!-- The Balance browser panel -->
+        <div id="tab-panel-balance" class="hidden flex-col gap-3">
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] text-gray-500 uppercase tracking-wide">Raid Tier (applied to all additions)</label>
+            <select id="sel-balance-tier" class="bg-ffxiv-dark border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold">
+              <option value="aac_hw">AAC Heavyweight (M9&ndash;M12)</option>
+              <option value="aac_mw">AAC Middleweight (M5&ndash;M8)</option>
+              <option value="aac_lw">AAC Light-heavyweight (M1&ndash;M4)</option>
+              <option value="ultimate">Ultimate</option>
+              <option value="criterion">Criterion</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <button id="btn-load-balance"
+            class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors self-start">
+            Load from The Balance
+          </button>
+          <div id="balance-links-list" class="flex flex-col gap-1.5 max-h-52 overflow-y-auto"></div>
+        </div>
       </div>
     </div>
 

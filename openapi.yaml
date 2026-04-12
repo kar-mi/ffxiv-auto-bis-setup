@@ -16,6 +16,8 @@ tags:
     description: Gear snapshots from packet capture
   - name: bis
     description: Best-In-Slot sets from xivgear.app
+  - name: catalog
+    description: Locally stored BIS sets and per-job preferences
   - name: compare
     description: Gear vs BIS comparison
   - name: window
@@ -88,6 +90,134 @@ paths:
   # ---------------------------------------------------------------------------
   # BIS
   # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
+  # BIS Catalog
+  # ---------------------------------------------------------------------------
+
+  /bis/catalog:
+    get:
+      tags: [catalog]
+      summary: Get BIS catalog
+      description: >
+        Returns the full local BIS catalog: all saved sets and per-job default
+        preferences. The catalog is stored in `data/bis/catalog.json` and is
+        committed to the repository so defaults can be shipped with the app.
+      responses:
+        "200":
+          description: Full catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BisCatalog"
+
+  /bis/catalog/sets:
+    post:
+      tags: [catalog]
+      summary: Save a BIS set locally
+      description: >
+        Fetches a BIS set from xivgear.app and stores it in the local catalog.
+        Upserting by ID is idempotent — re-saving the same (url, setIndex) pair
+        refreshes the set data and updates `savedAt`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, raidTier]
+              properties:
+                url:
+                  type: string
+                  description: xivgear.app URL (normalized internally)
+                  example: "https://xivgear.app/?page=bis|war|current&selectedIndex=0"
+                setIndex:
+                  type: integer
+                  description: >
+                    0-based set index. Defaults to `selectedIndex` in the URL,
+                    then 0.
+                  example: 0
+                raidTier:
+                  $ref: "#/components/schemas/RaidTier"
+      responses:
+        "200":
+          description: The saved catalog entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalBisEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/UpstreamError"
+
+  /bis/catalog/sets/{id}:
+    delete:
+      tags: [catalog]
+      summary: Remove a saved BIS set
+      description: >
+        Removes the entry from the catalog. Also clears any job preference
+        that was pointing to this entry.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "bis_war_current_0"
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
+
+  /bis/catalog/preferences/{job}:
+    put:
+      tags: [catalog]
+      summary: Set default BIS set for a job
+      description: >
+        Marks a catalog entry as the preferred BIS set for a job. When the app
+        detects this job from the soul crystal, it will auto-select and compare
+        against this set.
+      parameters:
+        - name: job
+          in: path
+          required: true
+          description: Uppercase job abbreviation
+          schema:
+            type: string
+          example: "WAR"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  description: ID of the catalog entry to set as default
+                  example: "bis_war_current_0"
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [catalog]
+      summary: Clear default BIS set for a job
+      description: Removes the preferred set preference for a job.
+      parameters:
+        - name: job
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "WAR"
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
 
   /balance/{role}/{job}:
     get:
@@ -660,6 +790,70 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SlotComparison"
+
+    # ---- Catalog -------------------------------------------------------------
+
+    RaidTier:
+      type: string
+      enum: [aac_lw, aac_mw, aac_hw, ultimate, criterion, other]
+      description: >
+        Content tier the BIS set targets.
+
+        - `aac_lw` — AAC Light-heavyweight (M1–M4 Savage, patch 7.0)
+
+        - `aac_mw` — AAC Middleweight (M5–M8 Savage, patch 7.2)
+
+        - `aac_hw` — AAC Heavyweight (M9–M12 Savage, patch 7.4)
+
+        - `ultimate` — Ultimate difficulty
+
+        - `criterion` — Criterion / Criterion Savage
+
+        - `other` — Anything else (prog sets, levelling, etc.)
+
+    LocalBisEntry:
+      type: object
+      required: [id, url, setIndex, savedAt, set, raidTier]
+      properties:
+        id:
+          type: string
+          description: >
+            Stable key derived from the xivgear page slug and set index,
+            e.g. `"bis_war_current_0"`.
+          example: "bis_war_current_0"
+        url:
+          type: string
+          description: >
+            Canonical xivgear.app URL with `selectedIndex` baked in.
+          example: "https://xivgear.app/?page=bis|war|current&selectedIndex=0"
+        setIndex:
+          type: integer
+          example: 0
+        savedAt:
+          type: string
+          format: date-time
+        set:
+          $ref: "#/components/schemas/BisGearSet"
+        raidTier:
+          $ref: "#/components/schemas/RaidTier"
+
+    BisCatalog:
+      type: object
+      required: [sets, preferences]
+      properties:
+        sets:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocalBisEntry"
+        preferences:
+          type: object
+          description: >
+            Maps uppercase job abbreviation (e.g. `"WAR"`) to the `id` of
+            the preferred `LocalBisEntry` for that job.
+          additionalProperties:
+            type: string
+          example:
+            WAR: "bis_war_current_0"
 
     # ---- Shared --------------------------------------------------------------
 

@@ -29,7 +29,7 @@ const bisSetCache = new Map<string, BisGearSet>();
  * The Balance uses hash routing: https://xivgear.app/#/bis/war/prog
  * The API expects:            https://xivgear.app/?page=bis|war|prog
  */
-function normalizeXivgearUrl(url: string): string {
+export function normalizeXivgearUrl(url: string): string {
   const hashMatch = url.match(/^https:\/\/xivgear\.app\/#\/(.+)$/);
   if (hashMatch) {
     const page = hashMatch[1].replace(/\//g, '|');

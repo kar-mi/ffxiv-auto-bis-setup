@@ -6,6 +6,17 @@ import { getBisSet, fetchSetNames, resolveSetIndex } from "../bis/xivgear.ts";
 import { compareGear } from "../bis/comparison.ts";
 import { fetchBisLinks } from "../bis/balance.ts";
 import { computeNeeds } from "../bis/needs.ts";
+import {
+  loadCatalog,
+  saveCatalog,
+  upsertSet,
+  removeSet,
+  setPreference,
+  clearPreference,
+  makeEntryId,
+  canonicalUrl,
+} from "../bis/local-store.ts";
+import type { RaidTier } from "../types.ts";
 import { loadGearAcquisitionMap } from "../acquisition/loader.ts";
 import { computeAcquisition } from "../acquisition/compute.ts";
 import { logInventorySnapshot, INVENTORY_LOG_ENABLED } from "../debug/inventory-log.ts";
@@ -180,6 +191,102 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
       // -----------------------------------------------------------------------
       // BIS (Best-In-Slot) — data sourced from The Balance + xivgear.app
       // -----------------------------------------------------------------------
+
+      // -----------------------------------------------------------------------
+      // BIS Catalog — locally stored sets + per-job preferences
+      // -----------------------------------------------------------------------
+
+      // GET /bis/catalog
+      //   Returns the full catalog (all saved sets and job preferences).
+      //
+      //   Response: BisCatalog
+      //     { sets: LocalBisEntry[], preferences: { [job]: id } }
+      if (pathname === "/bis/catalog" && req.method === "GET") {
+        return json(await loadCatalog(PROJECT_ROOT));
+      }
+
+      // POST /bis/catalog/sets
+      //   Fetches a BIS set from xivgear.app and saves it to the local catalog.
+      //
+      //   Body: { url: string, setIndex?: number, raidTier: RaidTier }
+      //   Response: LocalBisEntry
+      if (pathname === "/bis/catalog/sets" && req.method === "POST") {
+        const body = (await req.json()) as { url?: string; setIndex?: number; raidTier?: string };
+        if (!body.url || !body.raidTier) {
+          return json({ error: "Missing url or raidTier" }, 400);
+        }
+        const VALID_TIERS = new Set<string>(["aac_lw", "aac_mw", "aac_hw", "ultimate", "criterion", "other"]);
+        if (!VALID_TIERS.has(body.raidTier)) {
+          return json({ error: `Invalid raidTier "${body.raidTier}"` }, 400);
+        }
+        try {
+          const resolvedIndex = body.setIndex ?? await resolveSetIndex(body.url);
+          const bisSet = await getBisSet(body.url, resolvedIndex);
+          const id = makeEntryId(body.url, resolvedIndex);
+          const url = canonicalUrl(body.url, resolvedIndex);
+          const entry = {
+            id,
+            url,
+            setIndex: resolvedIndex,
+            savedAt: new Date().toISOString(),
+            set: bisSet,
+            raidTier: body.raidTier as RaidTier,
+          };
+          let catalog = await loadCatalog(PROJECT_ROOT);
+          catalog = upsertSet(catalog, entry);
+          await saveCatalog(PROJECT_ROOT, catalog);
+          return json(entry);
+        } catch (e) {
+          return json({ error: String(e) }, 502);
+        }
+      }
+
+      // DELETE /bis/catalog/sets/:id
+      //   Removes a saved set. Also clears any preference pointing to it.
+      //
+      //   Response: { ok: true }
+      const catalogSetMatch = pathname.match(/^\/bis\/catalog\/sets\/([^/]+)$/);
+      if (catalogSetMatch && req.method === "DELETE") {
+        const id = decodeURIComponent(catalogSetMatch[1]);
+        let catalog = await loadCatalog(PROJECT_ROOT);
+        catalog = removeSet(catalog, id);
+        await saveCatalog(PROJECT_ROOT, catalog);
+        return json({ ok: true });
+      }
+
+      // PUT /bis/catalog/preferences/:job
+      //   Sets the preferred BIS set for a job.
+      //
+      //   Params:
+      //     job — uppercase job abbreviation (e.g. "WAR")
+      //   Body: { id: string }
+      //   Response: { ok: true }
+      //
+      // DELETE /bis/catalog/preferences/:job
+      //   Clears the preferred BIS set for a job.
+      //   Response: { ok: true }
+      const prefMatch = pathname.match(/^\/bis\/catalog\/preferences\/([^/]+)$/);
+      if (prefMatch) {
+        const job = decodeURIComponent(prefMatch[1]).toUpperCase();
+        if (req.method === "PUT") {
+          const body = (await req.json()) as { id?: string };
+          if (!body.id) return json({ error: "Missing id" }, 400);
+          let catalog = await loadCatalog(PROJECT_ROOT);
+          if (!catalog.sets.find(s => s.id === body.id)) {
+            return json({ error: `No catalog entry with id "${body.id}"` }, 404);
+          }
+          catalog = setPreference(catalog, job, body.id);
+          await saveCatalog(PROJECT_ROOT, catalog);
+          return json({ ok: true });
+        }
+        if (req.method === "DELETE") {
+          let catalog = await loadCatalog(PROJECT_ROOT);
+          catalog = clearPreference(catalog, job);
+          await saveCatalog(PROJECT_ROOT, catalog);
+          return json({ ok: true });
+        }
+        return json({ error: "Method not allowed" }, 405);
+      }
 
       // GET /balance/:role/:job
       //   Scrapes The Balance FFXIV for all xivgear.app BIS links for a job.

@@ -39,28 +39,37 @@ const LEFT_SLOTS   = ["mainHand", "head", "chest", "gloves", "legs", "feet"];
 const RIGHT_SLOTS  = ["offHand", "earRings", "necklace", "bracelet", "ring1", "ring2"];
 
 const JOBS = [
-  { label: "Paladin",      role: "tanks",   job: "paladin" },
-  { label: "Warrior",      role: "tanks",   job: "warrior" },
-  { label: "Dark Knight",  role: "tanks",   job: "dark-knight" },
-  { label: "Gunbreaker",   role: "tanks",   job: "gunbreaker" },
-  { label: "White Mage",   role: "healers", job: "white-mage" },
-  { label: "Scholar",      role: "healers", job: "scholar" },
-  { label: "Astrologian",  role: "healers", job: "astrologian" },
-  { label: "Sage",         role: "healers", job: "sage" },
-  { label: "Monk",         role: "melee",   job: "monk" },
-  { label: "Dragoon",      role: "melee",   job: "dragoon" },
-  { label: "Ninja",        role: "melee",   job: "ninja" },
-  { label: "Samurai",      role: "melee",   job: "samurai" },
-  { label: "Reaper",       role: "melee",   job: "reaper" },
-  { label: "Viper",        role: "melee",   job: "viper" },
-  { label: "Bard",         role: "ranged",  job: "bard" },
-  { label: "Machinist",    role: "ranged",  job: "machinist" },
-  { label: "Dancer",       role: "ranged",  job: "dancer" },
-  { label: "Black Mage",   role: "casters", job: "black-mage" },
-  { label: "Summoner",     role: "casters", job: "summoner" },
-  { label: "Red Mage",     role: "casters", job: "red-mage" },
-  { label: "Pictomancer",  role: "casters", job: "pictomancer" },
+  { label: "Paladin",      abbrev: "PLD", role: "tanks",   job: "paladin" },
+  { label: "Warrior",      abbrev: "WAR", role: "tanks",   job: "warrior" },
+  { label: "Dark Knight",  abbrev: "DRK", role: "tanks",   job: "dark-knight" },
+  { label: "Gunbreaker",   abbrev: "GNB", role: "tanks",   job: "gunbreaker" },
+  { label: "White Mage",   abbrev: "WHM", role: "healers", job: "white-mage" },
+  { label: "Scholar",      abbrev: "SCH", role: "healers", job: "scholar" },
+  { label: "Astrologian",  abbrev: "AST", role: "healers", job: "astrologian" },
+  { label: "Sage",         abbrev: "SGE", role: "healers", job: "sage" },
+  { label: "Monk",         abbrev: "MNK", role: "melee",   job: "monk" },
+  { label: "Dragoon",      abbrev: "DRG", role: "melee",   job: "dragoon" },
+  { label: "Ninja",        abbrev: "NIN", role: "melee",   job: "ninja" },
+  { label: "Samurai",      abbrev: "SAM", role: "melee",   job: "samurai" },
+  { label: "Reaper",       abbrev: "RPR", role: "melee",   job: "reaper" },
+  { label: "Viper",        abbrev: "VPR", role: "melee",   job: "viper" },
+  { label: "Bard",         abbrev: "BRD", role: "ranged",  job: "bard" },
+  { label: "Machinist",    abbrev: "MCH", role: "ranged",  job: "machinist" },
+  { label: "Dancer",       abbrev: "DNC", role: "ranged",  job: "dancer" },
+  { label: "Black Mage",   abbrev: "BLM", role: "casters", job: "black-mage" },
+  { label: "Summoner",     abbrev: "SMN", role: "casters", job: "summoner" },
+  { label: "Red Mage",     abbrev: "RDM", role: "casters", job: "red-mage" },
+  { label: "Pictomancer",  abbrev: "PCT", role: "casters", job: "pictomancer" },
 ];
+
+const RAID_TIER_LABELS = {
+  aac_lw:    "AAC Light-heavyweight (M1\u2013M4)",
+  aac_mw:    "AAC Middleweight (M5\u2013M8)",
+  aac_hw:    "AAC Heavyweight (M9\u2013M12)",
+  ultimate:  "Ultimate",
+  criterion: "Criterion",
+  other:     "Other",
+};
 
 // ---- Module state -------------------------------------------------------
 
@@ -71,6 +80,8 @@ let currentBisSet = null;        // BisGearSet | null
 let bisItemDataMap = new Map();  // item data for BIS items
 let acquisitionData = null;      // SlotAcquisitionStatus[] | null
 let currentJobKey = null;        // "role/job" slug, to avoid re-fetching BIS links on same job
+let currentJobAbbrev = null;     // uppercase job abbreviation, e.g. "WAR"
+let currentCatalog = null;       // BisCatalog | null
 
 // ---- DOM helpers --------------------------------------------------------
 
@@ -626,6 +637,183 @@ async function runComparison() {
   renderAcquisitionPanel();
 }
 
+// ---- BIS catalog --------------------------------------------------------
+
+async function loadCatalog() {
+  try {
+    const res = await fetch(`${API_BASE}/bis/catalog`);
+    if (res.ok) currentCatalog = await res.json();
+  } catch {
+    logger.warn("[app] could not load BIS catalog");
+  }
+}
+
+function openAddSetModal() {
+  if (currentBisSet?.source) {
+    el("input-xivgear-url").value = currentBisSet.source;
+  }
+  el("add-set-modal").classList.remove("hidden");
+}
+
+function closeAddSetModal() {
+  el("add-set-modal").classList.add("hidden");
+  el("manual-add-status").classList.add("hidden");
+}
+
+function switchAddSetTab(tab) {
+  const isManual = tab === "manual";
+  el("tab-panel-manual").classList.toggle("hidden", !isManual);
+  el("tab-panel-manual").classList.toggle("flex", isManual);
+  el("tab-panel-balance").classList.toggle("hidden", isManual);
+  el("tab-panel-balance").classList.toggle("flex", !isManual);
+  const activeClasses   = ["text-gray-200", "border-ffxiv-gold"];
+  const inactiveClasses = ["text-gray-500", "border-transparent"];
+  const activeBtn   = el(isManual ? "tab-btn-manual"  : "tab-btn-balance");
+  const inactiveBtn = el(isManual ? "tab-btn-balance" : "tab-btn-manual");
+  activeBtn.classList.add(...activeClasses);
+  activeBtn.classList.remove(...inactiveClasses);
+  inactiveBtn.classList.add(...inactiveClasses);
+  inactiveBtn.classList.remove(...activeClasses);
+}
+
+/** POST a URL to the catalog, optionally set as default. Refreshes dropdown + catalog section. */
+async function addSetFromUrl(url, raidTier, setDefault) {
+  const res = await fetch(`${API_BASE}/bis/catalog/sets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, raidTier }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error ?? `HTTP ${res.status}`);
+  }
+  const entry = await res.json();
+  if (setDefault && currentJobAbbrev) {
+    await fetch(`${API_BASE}/bis/catalog/preferences/${encodeURIComponent(currentJobAbbrev)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: entry.id }),
+    });
+  }
+  await loadCatalog();
+  refreshBisDropdown();
+  return entry;
+}
+
+/** Repopulate the BIS selector dropdown from the current catalog for the current job. */
+function refreshBisDropdown() {
+  if (!currentJobAbbrev) return;
+  const savedEntries = (currentCatalog?.sets ?? []).filter(e => e.set.job === currentJobAbbrev);
+  const preferredId  = currentCatalog?.preferences?.[currentJobAbbrev] ?? null;
+  const sel = el("sel-bis-link");
+  const currentVal = sel.value;
+
+  sel.innerHTML = `<option value="">— Select —</option>`;
+  for (const entry of savedEntries) {
+    const isDefault = entry.id === preferredId;
+    const opt = document.createElement("option");
+    opt.value = entry.url;
+    opt.textContent = `${isDefault ? "\u2605 " : ""}${entry.set.name}`;
+    sel.appendChild(opt);
+  }
+
+  if (currentVal && [...sel.options].some(o => o.value === currentVal)) {
+    sel.value = currentVal;
+  }
+  el("bis-link-wrap").classList.toggle("hidden", savedEntries.length === 0);
+}
+
+async function confirmManualAdd() {
+  const url = el("input-xivgear-url").value.trim();
+  if (!url) return;
+  const raidTier = el("sel-manual-tier").value;
+  const setDefault = el("chk-manual-default").checked;
+
+  const btn = el("btn-manual-add");
+  const statusEl = el("manual-add-status");
+  btn.disabled = true;
+  btn.textContent = "Adding...";
+  statusEl.classList.add("hidden");
+
+  try {
+    await addSetFromUrl(url, raidTier, setDefault);
+    el("input-xivgear-url").value = "";
+    statusEl.textContent = "Set added to catalog.";
+    statusEl.className = "text-xs text-green-400";
+    statusEl.classList.remove("hidden");
+  } catch (err) {
+    logger.error(err, "[app] manual add failed");
+    statusEl.textContent = String(err?.message ?? err);
+    statusEl.className = "text-xs text-red-400";
+    statusEl.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Add Set";
+  }
+}
+
+async function loadBalanceLinksForModal() {
+  const list = el("balance-links-list");
+  if (!currentJobAbbrev) {
+    list.innerHTML = `<p class="text-xs text-gray-500 italic">Load gear first to detect your job.</p>`;
+    return;
+  }
+  const job = JOBS.find(j => j.abbrev === currentJobAbbrev);
+  if (!job) return;
+
+  const btn = el("btn-load-balance");
+  btn.disabled = true;
+  btn.textContent = "Loading...";
+  list.innerHTML = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/balance/${job.role}/${job.job}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const links = await res.json();
+
+    if (!links.length) {
+      list.innerHTML = `<p class="text-xs text-gray-500 italic">No sets found for ${job.label}.</p>`;
+      return;
+    }
+
+    const savedUrls = new Set((currentCatalog?.sets ?? []).map(e => e.url));
+    list.innerHTML = links.map(link => {
+      const saved = savedUrls.has(link.url);
+      return `
+        <div class="flex items-center gap-2 bg-ffxiv-dark border border-ffxiv-border rounded px-3 py-2">
+          <span class="text-xs text-gray-200 flex-1 truncate" title="${link.url}">${link.label}</span>
+          ${saved
+            ? `<span class="text-[10px] text-gray-500 border border-ffxiv-border rounded px-1.5 py-0.5 flex-shrink-0">Saved</span>`
+            : `<button class="text-[10px] text-gray-400 hover:text-ffxiv-gold px-2 py-0.5 border border-ffxiv-border rounded transition-colors flex-shrink-0"
+                       data-balance-url="${link.url}">Add</button>`}
+        </div>`;
+    }).join("");
+
+    list.querySelectorAll("[data-balance-url]").forEach(addBtn => {
+      addBtn.addEventListener("click", async () => {
+        const url = addBtn.dataset.balanceUrl;
+        const raidTier = el("sel-balance-tier").value;
+        addBtn.disabled = true;
+        addBtn.textContent = "Adding...";
+        try {
+          await addSetFromUrl(url, raidTier, false);
+          addBtn.textContent = "Saved \u2713";
+          addBtn.className = "text-[10px] text-green-400 px-2 py-0.5 border border-green-800 rounded flex-shrink-0";
+        } catch (err) {
+          addBtn.textContent = "Error";
+          addBtn.className = "text-[10px] text-red-400 px-2 py-0.5 border border-red-800 rounded flex-shrink-0";
+          addBtn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    list.innerHTML = `<p class="text-xs text-red-400">Failed to load: ${err?.message ?? err}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Load from The Balance";
+  }
+}
+
 // ---- BIS selector -------------------------------------------------------
 
 async function autoDetectJob(itemDataMap) {
@@ -639,47 +827,48 @@ async function autoDetectJob(itemDataMap) {
   const job = JOBS.find(j => j.label.toLowerCase() === jobLabel.toLowerCase());
   if (!job) return;
 
-  // Same job as last time — dropdown is already populated, leave selection intact
+  currentJobAbbrev = job.abbrev;
+  if (!currentCatalog) await loadCatalog();
+
   const jobKey = `${job.role}/${job.job}`;
   if (jobKey === currentJobKey) return;
   currentJobKey = jobKey;
 
-  // Reset BIS link dropdown
+  // Reset BIS controls
   el("bis-link-wrap").classList.add("hidden");
   el("btn-compare").classList.add("hidden");
   el("sel-bis-link").innerHTML = `<option value="">— Select —</option>`;
 
-  setStatus(`Loading BIS sets for ${job.label}...`);
-  let links;
-  try {
-    const res = await fetch(`${API_BASE}/balance/${job.role}/${job.job}`);
-    if (!res.ok) {
-      const data2 = await res.json().catch(() => null);
-      setStatus(data2?.error ?? "Failed to load BIS links", true);
+  const savedEntries = (currentCatalog?.sets ?? []).filter(e => e.set.job === job.abbrev);
+  const preferredId  = currentCatalog?.preferences?.[job.abbrev] ?? null;
+
+  // Populate dropdown from catalog only
+  for (const entry of savedEntries) {
+    const isDefault = entry.id === preferredId;
+    const opt = document.createElement("option");
+    opt.value = entry.url;
+    opt.textContent = `${isDefault ? "\u2605 " : ""}${entry.set.name}`;
+    el("sel-bis-link").appendChild(opt);
+  }
+
+  if (savedEntries.length > 0) {
+    el("bis-link-wrap").classList.remove("hidden");
+  }
+
+  // Auto-apply preferred set: select it and run comparison immediately
+  if (preferredId) {
+    const entry = savedEntries.find(e => e.id === preferredId);
+    if (entry) {
+      el("sel-bis-link").value = entry.url;
+      el("btn-compare").classList.remove("hidden");
+      await runComparison();
       return;
     }
-    links = await res.json();
-  } catch (err) {
-    logger.error(err, "[app] /balance fetch failed");
-    setStatus("Could not load BIS links", true);
-    return;
   }
 
-  clearStatus();
-  if (!links.length) return;
-
-  const sel = el("sel-bis-link");
-  for (const { label: linkLabel, url } of links) {
-    const opt = document.createElement("option");
-    opt.value = url;
-    opt.textContent = linkLabel;
-    sel.appendChild(opt);
-  }
-  el("bis-link-wrap").classList.remove("hidden");
-
-  // Auto-select and show Compare if only one option
-  if (links.length === 1) {
-    sel.value = links[0].url;
+  // Auto-select single catalog entry (show Compare, don't auto-run)
+  if (savedEntries.length === 1) {
+    el("sel-bis-link").value = savedEntries[0].url;
     onBisLinkChange();
   }
 }
@@ -689,11 +878,12 @@ function onBisLinkChange() {
 }
 
 function clearComparison() {
-  comparisonData  = null;
-  currentBisSet   = null;
-  bisItemDataMap  = new Map();
-  acquisitionData = null;
-  currentJobKey   = null;
+  comparisonData   = null;
+  currentBisSet    = null;
+  bisItemDataMap   = new Map();
+  acquisitionData  = null;
+  currentJobKey    = null;
+  currentJobAbbrev = null;
   el("bis-link-wrap").classList.add("hidden");
   el("btn-compare").classList.add("hidden");
   el("btn-clear-compare").classList.add("hidden");
@@ -706,7 +896,14 @@ function clearComparison() {
 
 el("sel-bis-link").addEventListener("change", onBisLinkChange);
 el("btn-compare").addEventListener("click", runComparison);
+el("btn-add-set").addEventListener("click", openAddSetModal);
 el("btn-clear-compare").addEventListener("click", clearComparison);
+el("add-set-modal-close").addEventListener("click", closeAddSetModal);
+el("add-set-modal").addEventListener("click", e => { if (e.target === el("add-set-modal")) closeAddSetModal(); });
+el("btn-manual-add").addEventListener("click", confirmManualAdd);
+el("btn-load-balance").addEventListener("click", loadBalanceLinksForModal);
+el("tab-btn-manual").addEventListener("click", () => switchAddSetTab("manual"));
+el("tab-btn-balance").addEventListener("click", () => switchAddSetTab("balance"));
 
 el("btn-refresh").addEventListener("click", loadGear);
 

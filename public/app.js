@@ -704,8 +704,8 @@ function renderSavedSetsTab() {
       <div class="relative flex flex-col gap-1.5 bg-ffxiv-dark border border-ffxiv-border rounded px-3 py-2" data-entry-id="${entry.id}">
         ${CORNERS}
         <div class="flex items-center gap-2">
-          <div class="flex-1 min-w-0 p-px rounded bg-gradient-to-r from-violet-500/50 to-ffxiv-gold/50">
-            <input class="inp-set-name text-xs text-gray-200 font-medium bg-ffxiv-dark rounded w-full px-1.5 py-0.5 focus:outline-none truncate"
+          <div class="flex-1 min-w-0">
+            <input class="inp-set-name text-xs text-gray-200 font-medium bg-ffxiv-dark border border-ffxiv-border rounded w-full px-1.5 py-0.5 focus:outline-none focus:border-ffxiv-gold/50 truncate"
                    value="${safeName}" data-id="${entry.id}" data-original="${safeName}" title="${entry.url}" />
           </div>
           <span class="text-[10px] text-gray-500 flex-shrink-0">${entry.set.job}</span>
@@ -900,7 +900,7 @@ async function loadBalanceLinksForModal() {
         try {
           await addSetFromUrl(url, raidTier, false);
           addBtn.textContent = "Saved \u2713";
-          addBtn.className = "text-[10px] text-green-400 px-2 py-0.5 border border-green-800 rounded flex-shrink-0";
+          addBtn.className = "text-[10px] text-green-400 px-2 py-0.5 border border-green-800/50 rounded flex-shrink-0";
           renderSavedSetsTab();
         } catch (err) {
           addBtn.textContent = "Error";

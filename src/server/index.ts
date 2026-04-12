@@ -18,7 +18,7 @@ import {
 } from "../bis/local-store.ts";
 import type { RaidTier } from "../types.ts";
 import { loadGearAcquisitionMap } from "../acquisition/loader.ts";
-import { computeAcquisition } from "../acquisition/compute.ts";
+import { computeAcquisition, buildCounts } from "../acquisition/compute.ts";
 import { logInventorySnapshot, INVENTORY_LOG_ENABLED } from "../debug/inventory-log.ts";
 import { parseItemOdr, buildPosMap } from "../dat/itemodr.ts";
 import { getFfxivDataDir, findItemodrPath } from "../dat/finder.ts";
@@ -546,6 +546,73 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
           capturedAt: inv.capturedAt,
           byContainer,
         });
+      }
+
+      // GET /upgrade-items
+      //   Returns all upgrade-related items for the active raid tier (coffers,
+      //   books, upgrade materials, tomestones), cross-referenced against the
+      //   current inventory.  Does NOT filter by whether an item is currently
+      //   needed — shows everything regardless of equipped gear.
+      //
+      //   Response: { currency, coffers, materials, books }
+      //     Each array: Array<{ itemId: number; name: string; have: number }>
+      if (pathname === "/upgrade-items" && req.method === "GET") {
+        const acquisitionMap = await loadGearAcquisitionMap(PROJECT_ROOT);
+        const counts = buildCounts(getLatestInventory());
+        const have = (id: number) => id === 0 ? 0 : (counts.get(id) ?? 0);
+
+        // Collect all unique item IDs so we can resolve names/icons in one pass.
+        const allIds = new Set<number>();
+        if (acquisitionMap.tomeId !== 0) allIds.add(acquisitionMap.tomeId);
+        for (const slot of Object.values(acquisitionMap.slots)) {
+          if (slot && slot.cofferItemId !== 0) allIds.add(slot.cofferItemId);
+        }
+        for (const m of acquisitionMap.upgradeMaterials) {
+          if (m.itemId !== 0) allIds.add(m.itemId);
+        }
+        for (const b of acquisitionMap.books) {
+          if (b.itemId !== 0) allIds.add(b.itemId);
+        }
+
+        // Resolve all item data in parallel (server-side cache means repeated
+        // calls are free; only the first visit hits XIVAPI).
+        const itemDataMap = new Map(
+          await Promise.all([...allIds].map(async id => [id, await fetchItemData(id)] as const))
+        );
+        const resolve = (id: number, fallbackName: string) => {
+          const d = itemDataMap.get(id);
+          return { name: d?.name ?? fallbackName, icon: d?.icon ?? null };
+        };
+
+        const currency = acquisitionMap.tomeId !== 0 ? [(() => {
+          const { name, icon } = resolve(acquisitionMap.tomeId, acquisitionMap.tomeName);
+          return { itemId: acquisitionMap.tomeId, name, icon, have: have(acquisitionMap.tomeId) };
+        })()] : [];
+
+        const cofferSeen = new Set<number>();
+        const coffers: { itemId: number; name: string; icon: string | null; have: number }[] = [];
+        for (const slot of Object.values(acquisitionMap.slots)) {
+          if (!slot || slot.cofferItemId === 0 || cofferSeen.has(slot.cofferItemId)) continue;
+          cofferSeen.add(slot.cofferItemId);
+          const { name, icon } = resolve(slot.cofferItemId, "");
+          coffers.push({ itemId: slot.cofferItemId, name, icon, have: have(slot.cofferItemId) });
+        }
+
+        const materials = acquisitionMap.upgradeMaterials.map(m => {
+          const { name, icon } = resolve(m.itemId, m.name);
+          return { itemId: m.itemId, name, icon, have: have(m.itemId) };
+        });
+
+        const bookSeen = new Set<number>();
+        const books: { itemId: number; name: string; icon: string | null; have: number }[] = [];
+        for (const book of acquisitionMap.books) {
+          if (book.itemId === 0 || bookSeen.has(book.itemId)) continue;
+          bookSeen.add(book.itemId);
+          const { name, icon } = resolve(book.itemId, book.name);
+          books.push({ itemId: book.itemId, name, icon, have: have(book.itemId) });
+        }
+
+        return json({ currency, coffers, materials, books });
       }
 
       // GET /acquisition?url=&set=

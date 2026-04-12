@@ -11,7 +11,7 @@ import type {
 } from './types.ts';
 
 /** Build itemId → total quantity from all tracked inventory (bags + armory). */
-function buildCounts(inventory: InventorySnapshot | null): Map<number, number> {
+export function buildCounts(inventory: InventorySnapshot | null): Map<number, number> {
   const counts = new Map<number, number>();
   if (!inventory) return counts;
   for (const item of inventory.items) {

@@ -82,6 +82,7 @@ let acquisitionData = null;      // SlotAcquisitionStatus[] | null
 let currentJobKey = null;        // "role/job" slug, to avoid re-fetching BIS links on same job
 let currentJobAbbrev = null;     // uppercase job abbreviation, e.g. "WAR"
 let currentCatalog = null;       // BisCatalog | null
+let activeTab = 'gear';          // currently visible main tab
 
 // ---- DOM helpers --------------------------------------------------------
 
@@ -95,6 +96,26 @@ function setStatus(msg, isError = false) {
 }
 
 function clearStatus() { el("status").classList.add("hidden"); }
+
+// ---- Tab navigation -----------------------------------------------------
+
+const MAIN_TABS = ['gear', 'bis', 'upgrades', 'acquisition'];
+
+function switchTab(name) {
+  activeTab = name;
+  for (const t of MAIN_TABS) {
+    const isActive = t === name;
+    el(`main-tab-${t}`).classList.toggle('hidden', !isActive);
+    const btn = el(`main-tab-btn-${t}`);
+    btn.classList.toggle('text-gray-200',     isActive);
+    btn.classList.toggle('border-ffxiv-gold', isActive);
+    btn.classList.toggle('text-gray-500',     !isActive);
+    btn.classList.toggle('border-transparent', !isActive);
+  }
+  if (name === 'bis')         renderSavedSetsTab();
+  if (name === 'upgrades')    renderUpgradesTab();
+  if (name === 'acquisition') renderAcquisitionPanel();
+}
 
 // ---- Rendering ----------------------------------------------------------
 
@@ -238,19 +259,22 @@ function renderGearItem(slot, piece, itemDataMap, slotComp, index = 0) {
 // ---- Acquisition panel --------------------------------------------------
 
 function renderAcquisitionPanel() {
-  const panel = el("acquisition-panel");
+  const summaryEl = el("acquisition-summary");
+  const listEl    = el("acquisition-list");
+
   if (!acquisitionData || acquisitionData.length === 0) {
-    panel.classList.add("hidden");
+    summaryEl.innerHTML = "";
+    listEl.innerHTML = `<p class="text-xs text-gray-500 italic">No data yet — load gear and run a BIS comparison first.</p>`;
     return;
   }
 
   const canNow = acquisitionData.filter(s => s.canAcquireNow).length;
-  const total = acquisitionData.length;
-  el("acquisition-summary").innerHTML =
+  const total  = acquisitionData.length;
+  summaryEl.innerHTML =
     `<span class="text-gray-300">${total} slot${total !== 1 ? "s" : ""} need a new item</span>` +
     (canNow > 0 ? `<span class="ml-2 text-green-400">&mdash; ${canNow} can acquire now</span>` : "");
 
-  el("acquisition-list").innerHTML = acquisitionData.map(s => {
+  listEl.innerHTML = acquisitionData.map(s => {
     const label = SLOT_LABELS[s.slot] ?? s.slot;
     const pills = [];
 
@@ -277,12 +301,80 @@ function renderAcquisitionPanel() {
       </div>`;
   }).join("");
 
-  // Clicking a row opens the compare modal for that slot
-  panel.querySelectorAll("[data-acq-slot]").forEach(row => {
+  listEl.querySelectorAll("[data-acq-slot]").forEach(row => {
     row.addEventListener("click", () => openCompareModal(row.dataset.acqSlot));
   });
+}
 
-  panel.classList.remove("hidden");
+// ---- Upgrades tab -------------------------------------------------------
+
+async function renderUpgradesTab() {
+  const content = el("upgrades-content");
+  content.innerHTML = `<p class="text-xs text-gray-500 italic">Loading...</p>`;
+
+  let upgradeItems;
+  try {
+    const res = await fetch(`${API_BASE}/upgrade-items`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      content.innerHTML = `<p class="text-xs text-red-400">${err?.error ?? `Failed to load (${res.status})`}</p>`;
+      return;
+    }
+    upgradeItems = await res.json();
+  } catch {
+    content.innerHTML = `<p class="text-xs text-red-400">Could not reach the server.</p>`;
+    return;
+  }
+
+  const allItems = [
+    ...upgradeItems.currency.map(i => ({ ...i, category: 'currency' })),
+    ...upgradeItems.coffers.map(i =>   ({ ...i, category: 'coffer' })),
+    ...upgradeItems.materials.map(i => ({ ...i, category: 'material' })),
+    ...upgradeItems.books.map(i =>     ({ ...i, category: 'book' })),
+  ];
+
+  if (allItems.length === 0) {
+    content.innerHTML = `<p class="text-xs text-gray-500 italic">No upgrade items found for the active raid tier.</p>`;
+    return;
+  }
+
+  const byCategory = cat => allItems.filter(e => e.category === cat);
+
+  const renderGridCell = ({ itemId, name, icon, have }) => {
+    const displayName = name || `Item #${itemId}`;
+    const haveColor = have > 0 ? "text-green-400" : "text-gray-500";
+    const borderColor = have > 0 ? "border-ffxiv-border hover:border-ffxiv-gold" : "border-ffxiv-border hover:border-gray-500 opacity-60";
+    const imgHtml = icon
+      ? `<img src="${icon}" alt="" class="w-10 h-10 rounded object-cover" onerror="this.style.display='none'">`
+      : `<div class="w-10 h-10 rounded bg-ffxiv-border"></div>`;
+    return `
+      <div class="relative flex flex-col items-center gap-1.5 bg-ffxiv-panel border ${borderColor} rounded p-2 transition-colors cursor-default" data-tooltip="${displayName}">
+        ${CORNERS}
+        ${imgHtml}
+        <span class="text-[11px] font-mono ${haveColor}">&times;${have}</span>
+      </div>`;
+  };
+
+  const CATEGORIES = [
+    { key: 'currency', label: 'Currency'  },
+    { key: 'coffer',   label: 'Coffers'   },
+    { key: 'material', label: 'Materials' },
+    { key: 'book',     label: 'Books'     },
+  ];
+
+  const sections = CATEGORIES.map(({ key, label }) => {
+    const items = byCategory(key);
+    if (items.length === 0) return '';
+    return `
+      <div class="mb-5">
+        <h3 class="font-cinzel text-xs font-semibold text-ffxiv-gold uppercase tracking-wide mb-2">${label}</h3>
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2">
+          ${items.map(renderGridCell).join('')}
+        </div>
+      </div>`;
+  }).join('');
+
+  content.innerHTML = sections || `<p class="text-xs text-gray-500 italic">No upgrade items found.</p>`;
 }
 
 function pill(text, ready) {
@@ -494,7 +586,11 @@ function closeModal() {
 // ---- Gear rendering -----------------------------------------------------
 
 function renderGear() {
-  if (!currentSnapshot) return;
+  if (!currentSnapshot) {
+    el("gear-empty").classList.remove("hidden");
+    return;
+  }
+  el("gear-empty").classList.add("hidden");
 
   const merged = new Map([...currentItemDataMap, ...bisItemDataMap]);
   const slotCompMap = {};
@@ -525,6 +621,7 @@ function renderGear() {
 async function loadGear() {
   logger.debug("[app] loadGear called");
   el("gear-list").classList.add("hidden");
+  el("gear-empty").classList.add("hidden");
   el("snapshot-meta").classList.add("hidden");
   setStatus("Fetching gear from packet capture...");
 
@@ -634,6 +731,7 @@ async function runComparison() {
   el("btn-clear-compare").classList.remove("hidden");
   renderGear();
   renderAcquisitionPanel();
+  if (activeTab === 'upgrades') renderUpgradesTab();
 }
 
 // ---- BIS catalog --------------------------------------------------------
@@ -648,13 +746,7 @@ async function loadCatalog() {
 }
 
 function openManageSetsModal() {
-  renderSavedSetsTab();
-  el("manage-sets-modal").classList.remove("hidden");
-}
-
-function closeManageSetsModal() {
-  el("manage-sets-modal").classList.add("hidden");
-  el("manual-add-status").classList.add("hidden");
+  switchTab('bis');
 }
 
 const MANAGE_TABS = ["saved", "manual", "balance"];
@@ -990,24 +1082,26 @@ function clearComparison() {
   el("bis-link-wrap").classList.add("hidden");
   el("btn-compare").classList.add("hidden");
   el("btn-clear-compare").classList.add("hidden");
-  el("acquisition-panel").classList.add("hidden");
   el("sel-bis-link").innerHTML = `<option value="">— Select —</option>`;
   renderGear();
+  renderAcquisitionPanel();
 }
 
 // ---- Init ---------------------------------------------------------------
 
 el("sel-bis-link").addEventListener("change", onBisLinkChange);
 el("btn-compare").addEventListener("click", runComparison);
-el("btn-manage-sets").addEventListener("click", openManageSetsModal);
+el("btn-manage-sets").addEventListener("click", () => switchTab('bis'));
 el("btn-clear-compare").addEventListener("click", clearComparison);
-el("manage-sets-modal-close").addEventListener("click", closeManageSetsModal);
-el("manage-sets-modal").addEventListener("click", e => { if (e.target === el("manage-sets-modal")) closeManageSetsModal(); });
 el("btn-manual-add").addEventListener("click", confirmManualAdd);
 el("btn-load-balance").addEventListener("click", loadBalanceLinksForModal);
 el("tab-btn-saved").addEventListener("click", () => switchManageSetsTab("saved"));
 el("tab-btn-manual").addEventListener("click", () => switchManageSetsTab("manual"));
 el("tab-btn-balance").addEventListener("click", () => switchManageSetsTab("balance"));
+
+document.querySelectorAll(".main-tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+});
 
 el("btn-refresh").addEventListener("click", loadGear);
 

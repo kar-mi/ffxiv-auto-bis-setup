@@ -464,6 +464,41 @@ paths:
         "502":
           $ref: "#/components/responses/UpstreamError"
 
+  /upgrade-items:
+    get:
+      tags: [compare]
+      summary: All upgrade-related items for the active raid tier
+      description: >
+        Returns all upgrade-related items (tomestones, coffers, upgrade
+        materials, raid books) for the active raid tier, cross-referenced
+        against the current inventory.  Unlike `/acquisition`, this endpoint
+        does NOT filter by whether the player currently needs an item — every
+        item defined in the acquisition map is returned.  `have` will be 0 if
+        no inventory snapshot exists.
+      responses:
+        "200":
+          description: Upgrade items grouped by category
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [currency, coffers, materials, books]
+                properties:
+                  currency:
+                    type: array
+                    items: { $ref: "#/components/schemas/UpgradeItem" }
+                  coffers:
+                    type: array
+                    items: { $ref: "#/components/schemas/UpgradeItem" }
+                  materials:
+                    type: array
+                    items: { $ref: "#/components/schemas/UpgradeItem" }
+                  books:
+                    type: array
+                    items: { $ref: "#/components/schemas/UpgradeItem" }
+        "502":
+          $ref: "#/components/responses/UpstreamError"
+
   # ---------------------------------------------------------------------------
   # Window controls (Electrobun desktop only)
   # ---------------------------------------------------------------------------
@@ -586,6 +621,22 @@ components:
       properties:
         error:
           type: string
+
+    UpgradeItem:
+      type: object
+      required: [itemId, name, have]
+      properties:
+        itemId:
+          type: integer
+        name:
+          type: string
+        icon:
+          type: string
+          nullable: true
+          description: XIVAPI icon URL, or null if item data could not be resolved
+        have:
+          type: integer
+          description: Quantity currently in the player's inventory (0 if no snapshot)
 
     # ---- Item ----------------------------------------------------------------
 

@@ -91,10 +91,10 @@
 </head>
 <body>
 
-  <!-- App shell: rounded window frame -->
+  <!-- App shell -->
   <div id="app-shell" class="relative w-screen h-screen rounded-xl overflow-hidden bg-ffxiv-dark text-gray-200 font-sans flex flex-col border border-ffxiv-border">
 
-    <!-- Resize handles (fixed to viewport so they always track window edges) -->
+    <!-- Resize handles -->
     <div class="fixed top-0      left-3      right-3  h-1.5 z-[60] cursor-n-resize"  data-dir="n"></div>
     <div class="fixed bottom-0   left-3      right-3  h-1.5 z-[60] cursor-s-resize"  data-dir="s"></div>
     <div class="fixed top-3      left-0      bottom-3 w-1.5 z-[60] cursor-w-resize"  data-dir="w"></div>
@@ -107,7 +107,6 @@
     <!-- Titlebar -->
     <div class="electrobun-webkit-app-region-drag shrink-0 h-9 bg-ffxiv-panel border-b border-ffxiv-border flex items-center justify-between select-none z-50 relative" style="border-bottom-color: rgba(200,168,75,0.2)">
       <span class="font-cinzel absolute left-1/2 -translate-x-1/2 text-xs font-semibold text-ffxiv-gold tracking-[0.2em] uppercase pointer-events-none">FFXIV Gear Setup</span>
-      <!-- Windows-style controls: minimize / maximize / close -->
       <div class="electrobun-webkit-app-region-no-drag flex h-full ml-auto">
         <button id="btn-win-minimize" title="Minimize"
           class="w-11 h-full flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-white/10 transition-colors text-base leading-none">
@@ -124,26 +123,32 @@
       </div>
     </div>
 
+    <!-- Tab bar -->
+    <div class="shrink-0 flex justify-center border-b border-ffxiv-border bg-ffxiv-panel" style="border-bottom-color: rgba(200,168,75,0.15)">
+      <button id="main-tab-btn-gear"        class="main-tab-btn px-4 h-8 text-xs border-b-2 border-ffxiv-gold   text-gray-200 -mb-px font-cinzel tracking-wide transition-colors"                       data-tab="gear">Gear</button>
+      <button id="main-tab-btn-bis"         class="main-tab-btn px-4 h-8 text-xs border-b-2 border-transparent text-gray-500 -mb-px font-cinzel tracking-wide hover:text-gray-300 transition-colors"   data-tab="bis">BIS Sets</button>
+      <button id="main-tab-btn-upgrades"    class="main-tab-btn px-4 h-8 text-xs border-b-2 border-transparent text-gray-500 -mb-px font-cinzel tracking-wide hover:text-gray-300 transition-colors"   data-tab="upgrades">Upgrades</button>
+      <button id="main-tab-btn-acquisition" class="main-tab-btn px-4 h-8 text-xs border-b-2 border-transparent text-gray-500 -mb-px font-cinzel tracking-wide hover:text-gray-300 transition-colors"   data-tab="acquisition">Acquisition</button>
+    </div>
+
     <!-- Scrollable content -->
     <div class="flex-1 overflow-y-auto">
-      <div class="max-w-3xl mx-auto px-4 py-6">
 
-        <!-- Header -->
+      <!-- ---- Gear tab ---- -->
+      <div id="main-tab-gear" class="max-w-3xl mx-auto px-4 py-6">
+
         <div class="flex items-center justify-between mb-8">
           <div>
             <h1 class="font-cinzel text-3xl font-bold text-ffxiv-gold tracking-wide">FFXIV Gear Setup</h1>
             <p class="text-gray-400 text-sm mt-1">Gear captured from the game client</p>
           </div>
-          <button
-            id="btn-refresh"
-            class="relative px-4 py-2 text-sm rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors"
-          >
+          <button id="btn-refresh"
+            class="relative px-4 py-2 text-sm rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors">
             <span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>
             Refresh
           </button>
         </div>
 
-        <!-- BIS comparison controls -->
         <div id="bis-controls" class="mb-4 flex flex-wrap items-end gap-3">
           <div id="bis-link-wrap" class="flex flex-col gap-1 hidden">
             <label class="text-[10px] text-gray-500 uppercase tracking-wide">BIS Set</label>
@@ -162,33 +167,18 @@
           </button>
         </div>
 
-
-        <!-- Status message -->
         <p id="status" class="text-sm text-gray-400 mb-6 hidden"></p>
-
-        <!-- Snapshot timestamp -->
         <p id="snapshot-meta" class="text-xs text-gray-500 mb-4 hidden"></p>
-
-        <!-- Gear list -->
         <div id="gear-list" class="hidden space-y-2"></div>
-
-        <!-- Acquisition panel -->
-        <div id="acquisition-panel" class="hidden mt-6">
-          <h3 class="font-cinzel text-xs font-semibold text-ffxiv-gold uppercase tracking-wide mb-3">Acquisition</h3>
-          <div id="acquisition-summary" class="text-xs text-gray-400 mb-3"></div>
-          <div id="acquisition-list" class="space-y-2"></div>
-        </div>
+        <p id="gear-empty" class="text-xs text-gray-500 italic">No gear data yet — click Refresh to load from packet capture.</p>
 
       </div>
-    </div>
 
-    <!-- Manage BIS Sets modal -->
-    <div id="manage-sets-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div class="modal-card bg-ffxiv-panel border border-ffxiv-border rounded-xl w-[420px] max-w-[92vw] max-h-[85vh] overflow-y-auto p-5 relative shadow-xl">
-        <button id="manage-sets-modal-close" class="absolute top-3 right-3 text-gray-500 hover:text-gray-200 text-lg leading-none">&#x2715;</button>
-        <h2 class="font-cinzel text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4">Manage BIS Sets</h2>
+      <!-- ---- BIS Sets tab ---- -->
+      <div id="main-tab-bis" class="hidden max-w-3xl mx-auto px-4 py-6">
 
-        <!-- Tab switcher -->
+        <h2 class="font-cinzel text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4">BIS Sets</h2>
+
         <div class="flex gap-0 border-b border-ffxiv-border mb-4">
           <button id="tab-btn-saved"
             class="px-3 pb-2 text-xs text-gray-200 border-b-2 border-ffxiv-gold -mb-px"
@@ -201,12 +191,10 @@
             data-tab="balance">The Balance</button>
         </div>
 
-        <!-- Saved Sets panel -->
         <div id="tab-panel-saved" class="flex flex-col gap-2">
-          <div id="saved-sets-list" class="flex flex-col gap-1.5 max-h-72 overflow-y-auto"></div>
+          <div id="saved-sets-list" class="flex flex-col gap-1.5 max-h-[60vh] overflow-y-auto"></div>
         </div>
 
-        <!-- Paste URL panel -->
         <div id="tab-panel-manual" class="hidden flex-col gap-3">
           <div class="flex flex-col gap-1">
             <label class="text-[10px] text-gray-500 uppercase tracking-wide">xivgear.app URL</label>
@@ -236,7 +224,6 @@
           <p id="manual-add-status" class="text-xs hidden"></p>
         </div>
 
-        <!-- The Balance browser panel -->
         <div id="tab-panel-balance" class="hidden flex-col gap-3">
           <div class="flex flex-col gap-1">
             <label class="text-[10px] text-gray-500 uppercase tracking-wide">Raid Tier (applied to all additions)</label>
@@ -253,9 +240,26 @@
             class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors self-start">
             Load from The Balance
           </button>
-          <div id="balance-links-list" class="flex flex-col gap-1.5 max-h-52 overflow-y-auto"></div>
+          <div id="balance-links-list" class="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto"></div>
+        </div>
+
+      </div>
+
+      <!-- ---- Upgrades tab ---- -->
+      <div id="main-tab-upgrades" class="hidden max-w-3xl mx-auto px-4 py-6">
+        <div id="upgrades-content">
+          <p class="text-xs text-gray-500 italic">No data yet — load gear and run a BIS comparison first.</p>
         </div>
       </div>
+
+      <!-- ---- Acquisition tab ---- -->
+      <div id="main-tab-acquisition" class="hidden max-w-3xl mx-auto px-4 py-6">
+        <div id="acquisition-summary" class="text-xs text-gray-400 mb-3"></div>
+        <div id="acquisition-list" class="space-y-2">
+          <p class="text-xs text-gray-500 italic">No data yet — load gear and run a BIS comparison first.</p>
+        </div>
+      </div>
+
     </div>
 
     <!-- Comparison modal -->

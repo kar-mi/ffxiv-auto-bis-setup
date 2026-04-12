@@ -38,7 +38,7 @@
   "slots": {
     "mainHand": {
       "_note": "No coffer. Path type (raid book purchase vs tome upgrade) is determined at runtime via XIVAPI iLevel check.",
-      "cofferItemId": 0,
+      "cofferItemId": 49739,
       "bookIndex": 3,
       "bookCount": 8,
       "tomeCost": 500,

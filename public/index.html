@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FFXIV Gear Setup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -49,6 +52,41 @@
       z-index: 200;
     }
     [data-tooltip]:hover::after { opacity: 1; }
+
+    /* ---- Typography ---- */
+    .font-cinzel { font-family: 'Cinzel', serif; }
+    .font-mono   { font-family: 'Share Tech Mono', monospace !important; }
+
+    /* ---- Corner accents ---- */
+    .corner-tl, .corner-tr, .corner-bl, .corner-br {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      pointer-events: none;
+      opacity: 0.45;
+    }
+    .corner-tl { top: 2px; left: 2px; border-top: 1px solid #c8a84b; border-left: 1px solid #c8a84b; }
+    .corner-tr { top: 2px; right: 2px; border-top: 1px solid #c8a84b; border-right: 1px solid #c8a84b; }
+    .corner-bl { bottom: 2px; left: 2px; border-bottom: 1px solid #c8a84b; border-left: 1px solid #c8a84b; }
+    .corner-br { bottom: 2px; right: 2px; border-bottom: 1px solid #c8a84b; border-right: 1px solid #c8a84b; }
+
+    /* ---- Status glows (via data-status attribute) ---- */
+    .gear-card[data-status="match"]         { border-color: rgba(22,163,74,0.55);  box-shadow: 0 0 10px rgba(22,163,74,0.15); }
+    .gear-card[data-status="wrong-materia"] { border-color: rgba(234,179,8,0.6);   box-shadow: 0 0 10px rgba(234,179,8,0.15); }
+    .gear-card[data-status="wrong-item"],
+    .gear-card[data-status="missing"]       { border-color: rgba(220,38,38,0.6);   box-shadow: 0 0 10px rgba(220,38,38,0.15); }
+
+    /* ---- Animations ---- */
+    @keyframes cardReveal {
+      from { opacity: 0; transform: translateY(3px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes modalSlide {
+      from { opacity: 0; transform: scale(0.97) translateY(-4px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .gear-card  { animation: cardReveal 0.18s ease-out both; }
+    .modal-card { animation: modalSlide 0.15s ease-out both; }
   </style>
 </head>
 <body>
@@ -67,8 +105,8 @@
     <div class="fixed bottom-0   right-0     w-5 h-5  z-[61] cursor-se-resize" data-dir="se"></div>
 
     <!-- Titlebar -->
-    <div class="electrobun-webkit-app-region-drag shrink-0 h-9 bg-ffxiv-panel border-b border-ffxiv-border flex items-center justify-between select-none z-50 relative">
-      <span class="absolute left-1/2 -translate-x-1/2 text-xs font-semibold text-ffxiv-gold tracking-[0.2em] uppercase pointer-events-none">FFXIV Gear Setup</span>
+    <div class="electrobun-webkit-app-region-drag shrink-0 h-9 bg-ffxiv-panel border-b border-ffxiv-border flex items-center justify-between select-none z-50 relative" style="border-bottom-color: rgba(200,168,75,0.2)">
+      <span class="font-cinzel absolute left-1/2 -translate-x-1/2 text-xs font-semibold text-ffxiv-gold tracking-[0.2em] uppercase pointer-events-none">FFXIV Gear Setup</span>
       <!-- Windows-style controls: minimize / maximize / close -->
       <div class="electrobun-webkit-app-region-no-drag flex h-full ml-auto">
         <button id="btn-win-minimize" title="Minimize"
@@ -93,13 +131,14 @@
         <!-- Header -->
         <div class="flex items-center justify-between mb-8">
           <div>
-            <h1 class="text-3xl font-bold text-ffxiv-gold tracking-wide">FFXIV Gear Setup</h1>
+            <h1 class="font-cinzel text-3xl font-bold text-ffxiv-gold tracking-wide">FFXIV Gear Setup</h1>
             <p class="text-gray-400 text-sm mt-1">Gear captured from the game client</p>
           </div>
           <button
             id="btn-refresh"
-            class="px-4 py-2 text-sm rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors"
+            class="relative px-4 py-2 text-sm rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors"
           >
+            <span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>
             Refresh
           </button>
         </div>
@@ -135,7 +174,7 @@
 
         <!-- Acquisition panel -->
         <div id="acquisition-panel" class="hidden mt-6">
-          <h3 class="text-xs font-semibold text-ffxiv-gold uppercase tracking-wide mb-3">Acquisition</h3>
+          <h3 class="font-cinzel text-xs font-semibold text-ffxiv-gold uppercase tracking-wide mb-3">Acquisition</h3>
           <div id="acquisition-summary" class="text-xs text-gray-400 mb-3"></div>
           <div id="acquisition-list" class="space-y-2"></div>
         </div>
@@ -144,10 +183,10 @@
     </div>
 
     <!-- Manage BIS Sets modal -->
-    <div id="manage-sets-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
-      <div class="bg-ffxiv-panel border border-ffxiv-border rounded-xl w-[420px] max-w-[92vw] max-h-[85vh] overflow-y-auto p-5 relative shadow-xl">
+    <div id="manage-sets-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div class="modal-card bg-ffxiv-panel border border-ffxiv-border rounded-xl w-[420px] max-w-[92vw] max-h-[85vh] overflow-y-auto p-5 relative shadow-xl">
         <button id="manage-sets-modal-close" class="absolute top-3 right-3 text-gray-500 hover:text-gray-200 text-lg leading-none">&#x2715;</button>
-        <h2 class="text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4">Manage BIS Sets</h2>
+        <h2 class="font-cinzel text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4">Manage BIS Sets</h2>
 
         <!-- Tab switcher -->
         <div class="flex gap-0 border-b border-ffxiv-border mb-4">
@@ -220,10 +259,10 @@
     </div>
 
     <!-- Comparison modal -->
-    <div id="compare-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
-      <div class="bg-ffxiv-panel border border-ffxiv-border rounded-xl w-[520px] max-w-[90vw] max-h-[85vh] overflow-y-auto p-5 relative shadow-xl">
+    <div id="compare-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div class="modal-card bg-ffxiv-panel border border-ffxiv-border rounded-xl w-[520px] max-w-[90vw] max-h-[85vh] overflow-y-auto p-5 relative shadow-xl">
         <button id="modal-close" class="absolute top-3 right-3 text-gray-500 hover:text-gray-200 text-lg leading-none">&#x2715;</button>
-        <h2 id="modal-slot-title" class="text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4"></h2>
+        <h2 id="modal-slot-title" class="font-cinzel text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4"></h2>
         <div id="modal-body" class="flex gap-4"></div>
         <div id="modal-acquisition" class="hidden mt-4 pt-4 border-t border-ffxiv-border space-y-3"></div>
       </div>

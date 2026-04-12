@@ -146,7 +146,8 @@ function crystalJobName(name) {
 function renderCrystal(piece, itemDataMap) {
   if (!piece) {
     return `
-      <div class="w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 opacity-40">
+      <div class="gear-card relative w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 opacity-40" style="animation-delay:120ms">
+        ${CORNERS}
         <div class="w-10 h-10 rounded bg-ffxiv-border"></div>
         <p class="text-[9px] text-gray-600 italic">None</p>
       </div>`;
@@ -158,21 +159,11 @@ function renderCrystal(piece, itemDataMap) {
          onerror="console.warn('[img] failed to load crystal icon:', this.src); this.style.display='none'">`
     : `<div class="w-10 h-10 rounded bg-ffxiv-border"></div>`;
   return `
-    <div class="w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 p-2 hover:border-ffxiv-gold transition-colors">
+    <div class="gear-card relative w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 p-2 hover:border-ffxiv-gold transition-colors" style="animation-delay:120ms">
+      ${CORNERS}
       ${icon}
       <p class="text-[9px] text-gray-300 font-medium text-center leading-tight">${jobName}</p>
     </div>`;
-}
-
-function borderClassForStatus(status) {
-  if (!status) return "border-ffxiv-border";
-  switch (status) {
-    case "match":        return "border-green-600";
-    case "wrong-materia": return "border-yellow-500";
-    case "wrong-item":
-    case "missing":      return "border-red-600";
-    default:             return "border-ffxiv-border";
-  }
 }
 
 function statusDotForStatus(status) {
@@ -187,18 +178,25 @@ function statusDotForStatus(status) {
   return `<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${color} flex-shrink-0"></span>`;
 }
 
-function renderGearItem(slot, piece, itemDataMap, slotComp) {
+const CORNERS = `<span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>`;
+
+function renderGearItem(slot, piece, itemDataMap, slotComp, index = 0) {
   const label = SLOT_LABELS[slot] ?? slot;
   const status = slotComp?.status ?? null;
-  const borderClass = borderClassForStatus(status);
-  const isClickable = status && status !== "match" && status !== "bis-empty";
+  const hasStatus = status && status !== "bis-empty";
+  const isClickable = hasStatus && status !== "match";
   const clickableClass = isClickable ? "cursor-pointer" : "";
+  const hoverClass = hasStatus ? "" : "hover:border-ffxiv-gold";
   const dot = statusDotForStatus(status);
+  const statusAttr = hasStatus ? `data-status="${status}"` : "";
+  const clickAttr = isClickable ? `data-slot="${slot}"` : "";
+  const animDelay = `animation-delay:${index * 40}ms`;
 
   if (!piece) {
     return `
-      <div class="relative flex items-start gap-2 bg-ffxiv-panel border ${borderClass} rounded p-2 opacity-40 ${clickableClass}"
-           ${isClickable ? `data-slot="${slot}"` : ""}>
+      <div class="gear-card relative flex items-start gap-2 bg-ffxiv-panel border border-ffxiv-border rounded p-2 opacity-40 ${clickableClass}"
+           ${clickAttr} ${statusAttr} style="${animDelay}">
+        ${CORNERS}
         ${dot}
         <div class="w-10 h-10 rounded bg-ffxiv-border flex-shrink-0"></div>
         <div class="flex-1 min-w-0">
@@ -221,11 +219,11 @@ function renderGearItem(slot, piece, itemDataMap, slotComp) {
          onerror="console.warn('[img] failed to load icon for item ${piece.itemId}:', this.src); this.style.display='none'">`
     : `<div class="w-10 h-10 rounded bg-ffxiv-border flex-shrink-0"></div>`;
   const hq = piece.hq ? ` <span class="text-[10px] text-ffxiv-gold align-middle">HQ</span>` : "";
-  const hoverClass = "hover:border-ffxiv-gold";
 
   return `
-    <div class="relative flex items-start gap-2 bg-ffxiv-panel border ${borderClass} rounded p-2 transition-colors ${hoverClass} ${clickableClass}"
-         ${isClickable ? `data-slot="${slot}"` : ""}>
+    <div class="gear-card relative flex items-start gap-2 bg-ffxiv-panel border border-ffxiv-border rounded p-2 transition-colors ${hoverClass} ${clickableClass}"
+         ${clickAttr} ${statusAttr} style="${animDelay}">
+      ${CORNERS}
       ${dot}
       ${icon}
       <div class="flex-1 min-w-0">
@@ -289,8 +287,8 @@ function renderAcquisitionPanel() {
 
 function pill(text, ready) {
   const cls = ready
-    ? "bg-green-900/60 text-green-300 border-green-700"
-    : "bg-ffxiv-dark text-gray-400 border-ffxiv-border";
+    ? "text-green-400 border-green-700/70"
+    : "text-gray-500 border-ffxiv-border";
   return `<span class="px-1.5 py-0.5 text-[10px] border rounded ${cls}">${text}</span>`;
 }
 
@@ -443,7 +441,8 @@ function renderModalItemColumn(heading, piece, bisItem, itemDataMap, status) {
   return `
     <div class="flex-1 min-w-0">
       <p class="text-[10px] text-gray-500 uppercase tracking-wide mb-2">${heading}</p>
-      <div class="flex items-start gap-2 bg-ffxiv-dark border border-ffxiv-border rounded p-2">
+      <div class="relative flex items-start gap-2 bg-ffxiv-dark border border-ffxiv-border rounded p-2">
+        ${CORNERS}
         ${icon}
         <div class="flex-1 min-w-0">
           <p class="text-xs font-medium ${itemNameColor} truncate">${name}</p>
@@ -504,8 +503,8 @@ function renderGear() {
   }
 
   const gearList = el("gear-list");
-  const leftHtml    = LEFT_SLOTS.map(slot  => renderGearItem(slot, currentSnapshot.items[slot] ?? null, merged, slotCompMap[slot])).join("");
-  const rightHtml   = RIGHT_SLOTS.map(slot => renderGearItem(slot, currentSnapshot.items[slot] ?? null, merged, slotCompMap[slot])).join("");
+  const leftHtml    = LEFT_SLOTS.map((slot, i) => renderGearItem(slot, currentSnapshot.items[slot] ?? null, merged, slotCompMap[slot], i)).join("");
+  const rightHtml   = RIGHT_SLOTS.map((slot, i) => renderGearItem(slot, currentSnapshot.items[slot] ?? null, merged, slotCompMap[slot], LEFT_SLOTS.length + i)).join("");
   const crystalHtml = renderCrystal(currentSnapshot.items["crystal"] ?? null, merged);
   gearList.innerHTML = `
     <div class="flex gap-3 items-start">
@@ -702,7 +701,8 @@ function renderSavedSetsTab() {
     const isDefault = currentCatalog?.preferences?.[entry.set.job] === entry.id;
     const safeName = entry.set.name.replace(/"/g, "&quot;");
     return `
-      <div class="flex flex-col gap-1.5 bg-ffxiv-dark border border-ffxiv-border rounded px-3 py-2" data-entry-id="${entry.id}">
+      <div class="relative flex flex-col gap-1.5 bg-ffxiv-dark border border-ffxiv-border rounded px-3 py-2" data-entry-id="${entry.id}">
+        ${CORNERS}
         <div class="flex items-center gap-2">
           <div class="flex-1 min-w-0 p-px rounded bg-gradient-to-r from-violet-500/50 to-ffxiv-gold/50">
             <input class="inp-set-name text-xs text-gray-200 font-medium bg-ffxiv-dark rounded w-full px-1.5 py-0.5 focus:outline-none truncate"

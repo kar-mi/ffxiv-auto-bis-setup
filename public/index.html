@@ -115,8 +115,8 @@
           <button id="btn-compare" class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors hidden">
             Compare
           </button>
-          <button id="btn-add-set" class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-400 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors">
-            Add Set
+          <button id="btn-manage-sets" class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-400 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors">
+            Manage Sets
           </button>
           <button id="btn-clear-compare" class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-400 hover:text-gray-200 transition-colors hidden">
             Clear
@@ -143,24 +143,32 @@
       </div>
     </div>
 
-    <!-- Add BIS Set modal -->
-    <div id="add-set-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
+    <!-- Manage BIS Sets modal -->
+    <div id="manage-sets-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
       <div class="bg-ffxiv-panel border border-ffxiv-border rounded-xl w-[420px] max-w-[92vw] max-h-[85vh] overflow-y-auto p-5 relative shadow-xl">
-        <button id="add-set-modal-close" class="absolute top-3 right-3 text-gray-500 hover:text-gray-200 text-lg leading-none">&#x2715;</button>
-        <h2 class="text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4">Add BIS Set</h2>
+        <button id="manage-sets-modal-close" class="absolute top-3 right-3 text-gray-500 hover:text-gray-200 text-lg leading-none">&#x2715;</button>
+        <h2 class="text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4">Manage BIS Sets</h2>
 
         <!-- Tab switcher -->
         <div class="flex gap-0 border-b border-ffxiv-border mb-4">
-          <button id="tab-btn-manual"
+          <button id="tab-btn-saved"
             class="px-3 pb-2 text-xs text-gray-200 border-b-2 border-ffxiv-gold -mb-px"
+            data-tab="saved">Saved Sets</button>
+          <button id="tab-btn-manual"
+            class="px-3 pb-2 text-xs text-gray-500 border-b-2 border-transparent -mb-px hover:text-gray-300 transition-colors"
             data-tab="manual">Paste URL</button>
           <button id="tab-btn-balance"
             class="px-3 pb-2 text-xs text-gray-500 border-b-2 border-transparent -mb-px hover:text-gray-300 transition-colors"
             data-tab="balance">The Balance</button>
         </div>
 
+        <!-- Saved Sets panel -->
+        <div id="tab-panel-saved" class="flex flex-col gap-2">
+          <div id="saved-sets-list" class="flex flex-col gap-1.5 max-h-72 overflow-y-auto"></div>
+        </div>
+
         <!-- Paste URL panel -->
-        <div id="tab-panel-manual" class="flex flex-col gap-3">
+        <div id="tab-panel-manual" class="hidden flex-col gap-3">
           <div class="flex flex-col gap-1">
             <label class="text-[10px] text-gray-500 uppercase tracking-wide">xivgear.app URL</label>
             <input id="input-xivgear-url" type="text"

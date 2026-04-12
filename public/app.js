@@ -648,32 +648,132 @@ async function loadCatalog() {
   }
 }
 
-function openAddSetModal() {
-  if (currentBisSet?.source) {
-    el("input-xivgear-url").value = currentBisSet.source;
-  }
-  el("add-set-modal").classList.remove("hidden");
+function openManageSetsModal() {
+  renderSavedSetsTab();
+  el("manage-sets-modal").classList.remove("hidden");
 }
 
-function closeAddSetModal() {
-  el("add-set-modal").classList.add("hidden");
+function closeManageSetsModal() {
+  el("manage-sets-modal").classList.add("hidden");
   el("manual-add-status").classList.add("hidden");
 }
 
-function switchAddSetTab(tab) {
-  const isManual = tab === "manual";
-  el("tab-panel-manual").classList.toggle("hidden", !isManual);
-  el("tab-panel-manual").classList.toggle("flex", isManual);
-  el("tab-panel-balance").classList.toggle("hidden", isManual);
-  el("tab-panel-balance").classList.toggle("flex", !isManual);
+const MANAGE_TABS = ["saved", "manual", "balance"];
+
+function switchManageSetsTab(tab) {
   const activeClasses   = ["text-gray-200", "border-ffxiv-gold"];
   const inactiveClasses = ["text-gray-500", "border-transparent"];
-  const activeBtn   = el(isManual ? "tab-btn-manual"  : "tab-btn-balance");
-  const inactiveBtn = el(isManual ? "tab-btn-balance" : "tab-btn-manual");
-  activeBtn.classList.add(...activeClasses);
-  activeBtn.classList.remove(...inactiveClasses);
-  inactiveBtn.classList.add(...inactiveClasses);
-  inactiveBtn.classList.remove(...activeClasses);
+  for (const t of MANAGE_TABS) {
+    const isActive = t === tab;
+    const panel = el(`tab-panel-${t}`);
+    panel.classList.toggle("hidden", !isActive);
+    panel.classList.toggle("flex", isActive);
+    const btn = el(`tab-btn-${t}`);
+    btn.classList.toggle(...(isActive ? [activeClasses[0], inactiveClasses[0]] : [inactiveClasses[0], activeClasses[0]]));
+    btn.classList.toggle(...(isActive ? [activeClasses[1], inactiveClasses[1]] : [inactiveClasses[1], activeClasses[1]]));
+  }
+}
+
+function tierSelectHtml(id, selected) {
+  const opts = Object.entries(RAID_TIER_LABELS).map(([v, label]) =>
+    `<option value="${v}"${v === selected ? " selected" : ""}>${label}</option>`
+  ).join("");
+  return `<select id="${id}" class="bg-ffxiv-dark border border-ffxiv-border text-gray-200 text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-ffxiv-gold flex-1">${opts}</select>`;
+}
+
+async function patchSet(id, patch) {
+  await fetch(`${API_BASE}/bis/catalog/sets/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  await loadCatalog();
+  refreshBisDropdown();
+}
+
+function renderSavedSetsTab() {
+  const list = el("saved-sets-list");
+  const allSets = currentCatalog?.sets ?? [];
+  if (allSets.length === 0) {
+    list.innerHTML = `<p class="text-xs text-gray-500 italic">No sets saved yet. Use Paste URL or The Balance to add one.</p>`;
+    return;
+  }
+  list.innerHTML = allSets.map(entry => {
+    const isDefault = currentCatalog?.preferences?.[entry.set.job] === entry.id;
+    const safeName = entry.set.name.replace(/"/g, "&quot;");
+    return `
+      <div class="flex flex-col gap-1.5 bg-ffxiv-dark border border-ffxiv-border rounded px-3 py-2" data-entry-id="${entry.id}">
+        <div class="flex items-center gap-2">
+          <div class="flex-1 min-w-0 p-px rounded bg-gradient-to-r from-violet-500/50 to-ffxiv-gold/50">
+            <input class="inp-set-name text-xs text-gray-200 font-medium bg-ffxiv-dark rounded w-full px-1.5 py-0.5 focus:outline-none truncate"
+                   value="${safeName}" data-id="${entry.id}" data-original="${safeName}" title="${entry.url}" />
+          </div>
+          <span class="text-[10px] text-gray-500 flex-shrink-0">${entry.set.job}</span>
+          <button class="btn-set-default flex-shrink-0 text-[10px] px-1.5 py-0.5 border rounded transition-colors ${isDefault ? "text-ffxiv-gold border-ffxiv-gold/60" : "text-gray-500 border-ffxiv-border hover:text-ffxiv-gold hover:border-ffxiv-gold/60"}"
+                  data-id="${entry.id}" data-job="${entry.set.job}" data-is-default="${isDefault}"
+                  title="${isDefault ? "Clear default" : "Set as default"}">
+            ${isDefault ? "\u2605" : "\u2606"}
+          </button>
+          <button class="btn-delete-set flex-shrink-0 text-[10px] text-gray-500 hover:text-red-400 transition-colors border border-ffxiv-border hover:border-red-800 rounded px-1.5 py-0.5"
+                  data-id="${entry.id}">
+            Remove
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] text-gray-500 flex-shrink-0">Tier</span>
+          ${tierSelectHtml(`tier-sel-${entry.id}`, entry.raidTier)}
+        </div>
+      </div>`;
+  }).join("");
+
+  list.querySelectorAll(".inp-set-name").forEach(input => {
+    input.addEventListener("blur", async () => {
+      const name = input.value.trim();
+      if (!name || name === input.dataset.original) return;
+      await patchSet(input.dataset.id, { name });
+      input.dataset.original = name;
+    });
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+      if (e.key === "Escape") { input.value = input.dataset.original; input.blur(); }
+    });
+  });
+
+  list.querySelectorAll(".btn-set-default").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const { id, job } = btn.dataset;
+      const isDefault = btn.dataset.isDefault === "true";
+      if (isDefault) {
+        await fetch(`${API_BASE}/bis/catalog/preferences/${encodeURIComponent(job)}`, { method: "DELETE" });
+      } else {
+        await fetch(`${API_BASE}/bis/catalog/preferences/${encodeURIComponent(job)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+      }
+      await loadCatalog();
+      refreshBisDropdown();
+      renderSavedSetsTab();
+    });
+  });
+
+  list.querySelectorAll(".btn-delete-set").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const { id } = btn.dataset;
+      btn.disabled = true;
+      btn.textContent = "Removing...";
+      await fetch(`${API_BASE}/bis/catalog/sets/${encodeURIComponent(id)}`, { method: "DELETE" });
+      await loadCatalog();
+      refreshBisDropdown();
+      renderSavedSetsTab();
+    });
+  });
+
+  list.querySelectorAll(`[id^="tier-sel-"]`).forEach(sel => {
+    const id = sel.id.replace("tier-sel-", "");
+    sel.addEventListener("change", () => patchSet(id, { raidTier: sel.value }));
+  });
 }
 
 /** POST a URL to the catalog, optionally set as default. Refreshes dropdown + catalog section. */
@@ -741,6 +841,8 @@ async function confirmManualAdd() {
     statusEl.textContent = "Set added to catalog.";
     statusEl.className = "text-xs text-green-400";
     statusEl.classList.remove("hidden");
+    switchManageSetsTab("saved");
+    renderSavedSetsTab();
   } catch (err) {
     logger.error(err, "[app] manual add failed");
     statusEl.textContent = String(err?.message ?? err);
@@ -799,6 +901,7 @@ async function loadBalanceLinksForModal() {
           await addSetFromUrl(url, raidTier, false);
           addBtn.textContent = "Saved \u2713";
           addBtn.className = "text-[10px] text-green-400 px-2 py-0.5 border border-green-800 rounded flex-shrink-0";
+          renderSavedSetsTab();
         } catch (err) {
           addBtn.textContent = "Error";
           addBtn.className = "text-[10px] text-red-400 px-2 py-0.5 border border-red-800 rounded flex-shrink-0";
@@ -896,14 +999,15 @@ function clearComparison() {
 
 el("sel-bis-link").addEventListener("change", onBisLinkChange);
 el("btn-compare").addEventListener("click", runComparison);
-el("btn-add-set").addEventListener("click", openAddSetModal);
+el("btn-manage-sets").addEventListener("click", openManageSetsModal);
 el("btn-clear-compare").addEventListener("click", clearComparison);
-el("add-set-modal-close").addEventListener("click", closeAddSetModal);
-el("add-set-modal").addEventListener("click", e => { if (e.target === el("add-set-modal")) closeAddSetModal(); });
+el("manage-sets-modal-close").addEventListener("click", closeManageSetsModal);
+el("manage-sets-modal").addEventListener("click", e => { if (e.target === el("manage-sets-modal")) closeManageSetsModal(); });
 el("btn-manual-add").addEventListener("click", confirmManualAdd);
 el("btn-load-balance").addEventListener("click", loadBalanceLinksForModal);
-el("tab-btn-manual").addEventListener("click", () => switchAddSetTab("manual"));
-el("tab-btn-balance").addEventListener("click", () => switchAddSetTab("balance"));
+el("tab-btn-saved").addEventListener("click", () => switchManageSetsTab("saved"));
+el("tab-btn-manual").addEventListener("click", () => switchManageSetsTab("manual"));
+el("tab-btn-balance").addEventListener("click", () => switchManageSetsTab("balance"));
 
 el("btn-refresh").addEventListener("click", loadGear);
 

@@ -152,6 +152,42 @@ paths:
           $ref: "#/components/responses/UpstreamError"
 
   /bis/catalog/sets/{id}:
+    patch:
+      tags: [catalog]
+      summary: Update a saved BIS set
+      description: >
+        Updates mutable fields of a saved set (raidTier, name). Does not
+        re-fetch data from xivgear.app. At least one field is required.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "bis_war_current_0"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                raidTier:
+                  $ref: "#/components/schemas/RaidTier"
+                name:
+                  type: string
+                  description: Display name override for the set.
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalBisEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
       tags: [catalog]
       summary: Remove a saved BIS set

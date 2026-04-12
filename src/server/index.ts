@@ -241,11 +241,34 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         }
       }
 
+      // PATCH /bis/catalog/sets/:id
+      //   Updates mutable fields of a saved set (raidTier, name).
+      //   Does not re-fetch from xivgear.app.
+      //
+      //   Body: { raidTier?: RaidTier, name?: string }
+      //   Response: LocalBisEntry
+      //
       // DELETE /bis/catalog/sets/:id
       //   Removes a saved set. Also clears any preference pointing to it.
       //
       //   Response: { ok: true }
       const catalogSetMatch = pathname.match(/^\/bis\/catalog\/sets\/([^/]+)$/);
+      if (catalogSetMatch && req.method === "PATCH") {
+        const id = decodeURIComponent(catalogSetMatch[1]);
+        const body = (await req.json()) as { raidTier?: string; name?: string };
+        if (!body.raidTier && !body.name) return json({ error: "Nothing to update" }, 400);
+        let catalog = await loadCatalog(PROJECT_ROOT);
+        const existing = catalog.sets.find(s => s.id === id);
+        if (!existing) return json({ error: `No catalog entry with id "${id}"` }, 404);
+        const updated = {
+          ...existing,
+          ...(body.raidTier ? { raidTier: body.raidTier as RaidTier } : {}),
+          ...(body.name     ? { set: { ...existing.set, name: body.name } } : {}),
+        };
+        catalog = upsertSet(catalog, updated);
+        await saveCatalog(PROJECT_ROOT, catalog);
+        return json(updated);
+      }
       if (catalogSetMatch && req.method === "DELETE") {
         const id = decodeURIComponent(catalogSetMatch[1]);
         let catalog = await loadCatalog(PROJECT_ROOT);

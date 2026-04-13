@@ -1,7 +1,7 @@
-import { BrowserWindow } from "electrobun/bun";
+import Electrobun, { BrowserWindow } from "electrobun/bun";
 import { dlopen, FFIType } from "bun:ffi";
 import path from "path";
-import { existsSync } from "fs";
+import { existsSync, writeFileSync } from "fs";
 import { startServer, setWindowControls } from "../server/index.ts";
 import type { GearSnapshot, InventorySnapshot } from "../types.ts";
 
@@ -30,11 +30,57 @@ try {
 const projectRoot = findProjectRoot(import.meta.dir);
 startServer(SERVER_PORT, path.join(projectRoot, "public"), projectRoot);
 
+// ---------------------------------------------------------------------------
+// Window state persistence — saves position/size across restarts
+// ---------------------------------------------------------------------------
+
+interface WindowState {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const windowStatePath = path.join(projectRoot, "data", "window-state.json");
+const defaultWindowState: WindowState = { x: 0, y: 0, width: 1280, height: 900 };
+
+function loadWindowState(): WindowState {
+  try {
+    if (existsSync(windowStatePath)) {
+      const raw = JSON.parse(Bun.file(windowStatePath).toString()) as unknown;
+      if (raw && typeof raw === "object") {
+        const s = raw as Record<string, unknown>;
+        if (
+          typeof s["x"] === "number" &&
+          typeof s["y"] === "number" &&
+          typeof s["width"] === "number" &&
+          typeof s["height"] === "number"
+        ) {
+          return { x: s["x"], y: s["y"], width: s["width"], height: s["height"] };
+        }
+      }
+    }
+  } catch {
+    // ignore — fall through to default
+  }
+  return { ...defaultWindowState };
+}
+
+function saveWindowState(state: WindowState): void {
+  try {
+    writeFileSync(windowStatePath, JSON.stringify(state));
+  } catch (e) {
+    console.warn("[window-state] Failed to save:", e);
+  }
+}
+
+const savedState = loadWindowState();
+
 // Open the desktop window
 const win = new BrowserWindow({
   title: "FFXIV Gear Setup",
   url: `http://localhost:${SERVER_PORT}`,
-  frame: { x: 0, y: 0, width: 1280, height: 900 },
+  frame: savedState,
   titleBarStyle: "hidden",
   transparent: true,
 });
@@ -45,6 +91,38 @@ setWindowControls({
   close: () => win.close(),
   getFrame: () => win.getFrame(),
   setFrame: (x, y, width, height) => win.setFrame(x, y, width, height),
+});
+
+// Persist window position/size on move or resize (debounced).
+// Track last known frame so the close handler doesn't call getFrame() on a
+// destroyed window (which returns zeros and wipes the saved state).
+let lastKnownFrame: WindowState = { ...savedState };
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleWindowStateSave(frame: WindowState): void {
+  lastKnownFrame = frame;
+  if (saveTimer !== null) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    saveWindowState(lastKnownFrame);
+  }, 500);
+}
+
+Electrobun.events.on(`resize-${win.id}`, (event: { data: { x: number; y: number; width: number; height: number } }) => {
+  scheduleWindowStateSave({ x: event.data.x, y: event.data.y, width: event.data.width, height: event.data.height });
+});
+Electrobun.events.on(`move-${win.id}`, (event: { data: { x: number; y: number } }) => {
+  const f = win.getFrame();
+  scheduleWindowStateSave({ x: event.data.x, y: event.data.y, width: f.width, height: f.height });
+});
+
+// Flush the last known frame on close (don't call getFrame — window may already be gone).
+Electrobun.events.on(`close-${win.id}`, () => {
+  if (saveTimer !== null) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  saveWindowState(lastKnownFrame);
 });
 
 // -----------------------------------------------------------------------

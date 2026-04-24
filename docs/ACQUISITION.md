@@ -51,9 +51,9 @@ Three materials are used to upgrade 780 tome gear to 790. Each applies to a spec
 ## Slot Notes
 
 ### Main Hand (weapon)
-- Tome weapons require a specific **tomestone weapon item** for the purchase (not just raw tomes).
-- There is **no book path** for buying the weapon directly — only the tome/upgrade route or a coffer drop.
-- In the JSON, `bookIndex: 4` (out of bounds) is used as a sentinel meaning "no book exchange available."
+- The weapon can be acquired via coffer, book exchange (8 × Edition 4), or the tome+upgrade route.
+- Whether a given BIS weapon is the raid variant or the upgraded tome variant is determined at runtime via XIVAPI (the same `upgradeOffset`/`baseILevel` check used for all other slots).
+- Tome weapons require a specific **tomestone weapon item** for the purchase, and the upgrade material is the Solvent (not Twine or Glaze).
 
 ### Off Hand (shield — Paladin only)
 - The shield cannot be purchased separately.
@@ -64,21 +64,25 @@ Three materials are used to upgrade 780 tome gear to 790. Each applies to a spec
 
 ## Acquisition Logic (how the code uses this)
 
-For each slot where the player's equipped item does not match BIS:
+For each slot where the player's equipped item does not match BIS (`computeAcquisition` in `src/acquisition/compute.ts`):
 
-1. **Identify the BIS item type** by matching `bisItemId` against `raidItemId` or `upgradeItemId` in the slot's data.
-   - Match on `raidItemId` → only **coffer** and **book** paths apply.
-   - Match on `upgradeItemId` → only the **upgrade** path applies (tome purchase + material).
-   - No match (IDs still 0 / not filled) → all paths shown with placeholder state.
+1. **Identify the BIS item type** via XIVAPI iLevel check:
+   - Subtract `upgradeOffset` from `bisItemId` → call XIVAPI for the resulting item ID.
+   - If XIVAPI reports `itemLevel === baseILevel` (e.g. 780), the BIS item is an **upgraded tome piece** → show only the upgrade path.
+   - Otherwise it's a **raid piece** → show coffer and book paths.
 
-2. **Cross-reference inventory** (bags + armory) for:
-   - The coffer item
-   - The relevant book edition
-   - The upgrade material
-   - The 780 base piece (bags or armory)
-   - The tomestone currency
+2. **Upgrade path** (tome piece slots):
+   - Base item ID = `bisItemId - upgradeOffset` (the 780 tome piece)
+   - Check bags/armory for the base item; if absent, check tomestone count vs `tomeCost`
+   - Check bags for the upgrade material; if absent, check book count vs material's `bookCount`
 
-3. **Surface** which paths are immediately satisfiable and which are partially complete.
+3. **Raid path** (non-upgrade slots):
+   - Check bags for the coffer item (`cofferItemId`)
+   - Check bags for the book edition (`books[bookIndex]`) vs `bookCount`
+
+4. **Cross-reference inventory** via `buildCounts()` which sums quantities across all tracked containers (bags + armory, containers 0–3 and 3200–3500).
+
+5. `canAcquireNow` is true when at least one path is fully satisfiable from current inventory.
 
 ---
 
@@ -87,39 +91,40 @@ For each slot where the player's equipped item does not match BIS:
 ```jsonc
 {
   "label": "human-readable tier name",
-  "tomeId": 0,            // item ID of the tomestone currency (0 = placeholder)
-  "tomeName": "...",
+  "tomeId": 49,             // item ID of the tomestone currency
+  "tomeName": "Allagan Tomestone of Aesthetics",
+  "upgradeOffset": 77,      // subtracted from a BIS item ID to get the 780 base tome item ID
+  "baseILevel": 780,        // expected iLevel of the base tome item (used to confirm upgrade path via XIVAPI)
   "books": [
-    { "itemId": 0, "name": "AAC Illustrated: HW Edition 1" },
+    { "itemId": 49760, "name": "AAC Illustrated: HW Edition 1" },
     // index 0 = Edition 1, index 1 = Edition 2, ...
   ],
   "upgradeMaterials": [
     {
-      "key": "twine",     // referenced by slots[*].upgradeMaterialKey
-      "itemId": 0,
-      "name": "...",
-      "bookIndex": 3,     // 0-based index into books[]
-      "bookCount": 4      // books needed to buy 1 of this material
+      "key": "twine",       // referenced by slots[*].upgradeMaterialKey
+      "itemId": 49758,
+      "name": "Thundersteeped Twine",
+      "bookIndex": 2,       // 0-based index into books[]
+      "bookCount": 4        // books needed to buy 1 of this material
     }
   ],
   "slots": {
     "head": {
-      "raidItemId": 0,          // 790 raid piece
-      "cofferItemId": 0,        // coffer that drops this slot's raid piece
-      "bookIndex": 2,           // which book edition buys this raid piece
-      "bookCount": 4,           // how many books
-      "currencyItemId": 0,      // 780 tome piece (upgrade input)
-      "tomeCost": 495,          // tomestones to buy the 780 piece
-      "upgradeItemId": 0,       // 790 upgraded piece (upgrade output)
-      "upgradeMaterialKey": "twine"
-    }
-    // bookIndex >= books.length → no book exchange for that slot (weapon sentinel)
-    // offHand → omit all fields if bundled with another slot
+      "cofferItemId": 49739,    // coffer item that opens to give this slot's raid piece
+      "bookIndex": 1,           // which book edition buys this raid piece (0-based into books[])
+      "bookCount": 4,           // how many books are needed
+      "tomeCost": 495,          // tomestones to purchase the 780 base tome item
+      "upgradeMaterialKey": "twine"  // key into upgradeMaterials[]
+    },
+    // offHand has no fields when it's bundled with mainHand (Paladin shield)
   }
 }
 ```
 
-To add a new raid tier: create `raidinfo/<tier_key>/gear-acquisition.json` and set `"activeTier": "<tier_key>"` in `raidinfo/index.json`.
+**How upgrade vs. raid path is determined at runtime:**
+The JSON does not label each slot as raid or upgrade. Instead, `computeAcquisition` subtracts `upgradeOffset` from the BIS item ID and queries XIVAPI. If the resulting item's `itemLevel` equals `baseILevel`, the slot is treated as an upgrade path; otherwise it's a raid path.
+
+To add a new raid tier: create `raidinfo/<tier_key>/gear-acquisition.json` and set `"activeTier": "<tier_key>"` in `raidinfo/index.json`. The `loadGearAcquisitionMap` loader is cached per process — restart the server after switching tiers.
 
 ---
 
@@ -151,14 +156,14 @@ The parser loops over identifier bytes (XOR-decoded), where `0x6E` starts an inv
 
 ### Current status
 
-**Not implemented.** The `/debug/inventory` endpoint aggregates items by `itemId` rather than by position, so visual order is not needed for the current debugging workflow.
+**Implemented.** `src/dat/itemodr.ts` parses the binary file and `src/dat/finder.ts` locates it automatically.
 
-If visual position matching is added in the future, the implementation would need:
-- The FFXIV user data directory path (configurable per region — Global/KR/CN paths differ)
-- A sequential binary reader (Teamcraft uses `buffer-reader`; Node's `Buffer` API is sufficient)
-- A filesystem watcher to pick up changes when the player moves items in-game
+- `getFfxivDataDir()` returns the Global Windows path by default; override with `FFXIV_DATA_DIR` env var.
+- `findItemodrPath(dataDir)` picks the single `FFXIV_CHR*` directory, or the one with the most recently modified `ITEMODR.DAT` when multiple characters exist.
+- `parseItemOdr(buf)` returns an `ItemOdr` map (section name → ordered `SlotCoord[]`).
+- `buildPosMap(odr)` converts this to a `Map<"containerId:slot", visualPosition>`.
 
-Reference implementation: `apps/electron/src/dat/dat-files-watcher.ts` in the `ffxiv-teamcraft` repo.
+The `/debug/inventory` endpoint re-reads `ITEMODR.DAT` on every request so item moves are reflected immediately. Items without an ODR entry (e.g. armory pieces the player has never moved) show `location: null` and sort to the end of their group.
 
 item ids
 ```

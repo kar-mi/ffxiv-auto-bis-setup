@@ -343,15 +343,16 @@ async function renderUpgradesTab() {
   const renderGridCell = ({ itemId, name, icon, have }) => {
     const displayName = name || `Item #${itemId}`;
     const haveColor = have > 0 ? "text-green-400" : "text-gray-500";
-    const borderColor = have > 0 ? "border-ffxiv-border hover:border-ffxiv-gold" : "border-ffxiv-border hover:border-gray-500 opacity-60";
+    const borderColor = have > 0 ? "border-ffxiv-border hover:border-ffxiv-gold" : "border-ffxiv-border hover:border-gray-500";
+    const dimClass = have > 0 ? "" : "opacity-60";
     const imgHtml = icon
-      ? `<img src="${icon}" alt="" class="w-10 h-10 rounded object-cover" onerror="this.style.display='none'">`
-      : `<div class="w-10 h-10 rounded bg-ffxiv-border"></div>`;
+      ? `<img src="${icon}" alt="" class="w-10 h-10 rounded object-cover ${dimClass}" onerror="this.style.display='none'">`
+      : `<div class="w-10 h-10 rounded bg-ffxiv-border ${dimClass}"></div>`;
     return `
       <div class="relative flex flex-col items-center gap-1.5 bg-ffxiv-panel border ${borderColor} rounded p-2 transition-colors cursor-default" data-tooltip="${displayName}">
         ${CORNERS}
         ${imgHtml}
-        <span class="text-[11px] font-mono ${haveColor}">&times;${have}</span>
+        <span class="text-[11px] font-mono ${haveColor} ${dimClass}">&times;${have}</span>
       </div>`;
   };
 
@@ -1104,6 +1105,7 @@ document.querySelectorAll(".main-tab-btn").forEach(btn => {
 });
 
 el("btn-refresh").addEventListener("click", loadGear);
+el("btn-refresh-upgrades").addEventListener("click", renderUpgradesTab);
 
 el("btn-win-close").addEventListener("click", () => fetch("/window/close", { method: "POST" }));
 el("btn-win-minimize").addEventListener("click", () => fetch("/window/minimize", { method: "POST" }));

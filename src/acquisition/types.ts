@@ -17,16 +17,16 @@ export interface UpgradeMaterialDef {
 
 /** Acquisition data for one gear slot in the JSON mapping file. */
 export interface SlotAcquisition {
-  /** Coffer item that can be opened for this slot's raid piece. 0 = not yet filled. */
-  cofferItemId: number;
+  /** Coffer item that can be opened for this slot's raid piece. Omit or 0 = no coffer. */
+  cofferItemId?: number;
   /** 0-based index into GearAcquisitionMap.books for the book→raid-piece exchange. */
-  bookIndex: number;
+  bookIndex?: number;
   /** Number of books needed to buy the raid piece. */
-  bookCount: number;
+  bookCount?: number;
   /** Tomestone cost for the 780 base item. */
-  tomeCost: number;
+  tomeCost?: number;
   /** Must match a key in GearAcquisitionMap.upgradeMaterials. */
-  upgradeMaterialKey: string;
+  upgradeMaterialKey?: string;
 }
 
 export interface GearAcquisitionMap {

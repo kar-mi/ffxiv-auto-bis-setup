@@ -565,7 +565,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         const allIds = new Set<number>();
         if (acquisitionMap.tomeId !== 0) allIds.add(acquisitionMap.tomeId);
         for (const slot of Object.values(acquisitionMap.slots)) {
-          if (slot && slot.cofferItemId !== 0) allIds.add(slot.cofferItemId);
+          if (slot && slot.cofferItemId != null && slot.cofferItemId !== 0) allIds.add(slot.cofferItemId);
         }
         for (const m of acquisitionMap.upgradeMaterials) {
           if (m.itemId !== 0) allIds.add(m.itemId);
@@ -592,7 +592,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         const cofferSeen = new Set<number>();
         const coffers: { itemId: number; name: string; icon: string | null; have: number }[] = [];
         for (const slot of Object.values(acquisitionMap.slots)) {
-          if (!slot || slot.cofferItemId === 0 || cofferSeen.has(slot.cofferItemId)) continue;
+          if (!slot || slot.cofferItemId == null || slot.cofferItemId === 0 || cofferSeen.has(slot.cofferItemId)) continue;
           cofferSeen.add(slot.cofferItemId);
           const { name, icon } = resolve(slot.cofferItemId, "");
           coffers.push({ itemId: slot.cofferItemId, name, icon, have: have(slot.cofferItemId) });

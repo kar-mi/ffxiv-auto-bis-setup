@@ -62,18 +62,18 @@ export function computeAcquisition(
     const isUpgradePath = upgradeBisIds.has(need.bisItemId);
 
     // bookIndex >= books.length is a sentinel meaning "no book exchange" (e.g. weapon).
-    const book = slotAcq.bookIndex < map.books.length ? (map.books[slotAcq.bookIndex] ?? null) : null;
-    const upgMat = map.upgradeMaterials.find(m => m.key === slotAcq.upgradeMaterialKey) ?? null;
+    const book = slotAcq.bookIndex != null && slotAcq.bookIndex < map.books.length ? (map.books[slotAcq.bookIndex] ?? null) : null;
+    const upgMat = slotAcq.upgradeMaterialKey ? (map.upgradeMaterials.find(m => m.key === slotAcq.upgradeMaterialKey) ?? null) : null;
     const upgMatBook = upgMat ? (map.books[upgMat.bookIndex] ?? null) : null;
 
     // ---- Coffer (raid path only) ----
-    const coffer: CofferStatus | null = (!isUpgradePath && slotAcq.cofferItemId !== 0) ? (() => {
+    const coffer: CofferStatus | null = (!isUpgradePath && slotAcq.cofferItemId != null && slotAcq.cofferItemId !== 0) ? (() => {
       const ic = itemCount(counts, slotAcq.cofferItemId, `Coffer`, 1);
       return { coffer: ic, available: ic.have >= 1 };
     })() : null;
 
     // ---- Books → raid piece (raid path only) ----
-    const books: BookExchangeStatus | null = (!isUpgradePath && book && book.itemId !== 0) ? (() => {
+    const books: BookExchangeStatus | null = (!isUpgradePath && book && book.itemId !== 0 && slotAcq.bookCount != null) ? (() => {
       const ic = itemCount(counts, book.itemId, book.name, slotAcq.bookCount);
       return { book: ic, available: ic.have >= slotAcq.bookCount };
     })() : null;
@@ -86,8 +86,8 @@ export function computeAcquisition(
       const base: BaseItemStatus = {
         baseItem: itemCount(counts, baseItemId, `780 base (${need.slot})`, 1),
         haveBase: qty(counts, baseItemId) >= 1,
-        tomes: itemCount(counts, map.tomeId, map.tomeName, slotAcq.tomeCost),
-        canBuyWithTomes: qty(counts, map.tomeId) >= slotAcq.tomeCost,
+        tomes: itemCount(counts, map.tomeId, map.tomeName, slotAcq.tomeCost ?? 0),
+        canBuyWithTomes: qty(counts, map.tomeId) >= (slotAcq.tomeCost ?? 0),
       };
 
       const material: UpgradeMaterialStatus = upgMat && upgMatBook ? (() => {

@@ -164,26 +164,3 @@ The parser loops over identifier bytes (XOR-decoded), where `0x6E` starts an inv
 - `buildPosMap(odr)` converts this to a `Map<"containerId:slot", visualPosition>`.
 
 The `/debug/inventory` endpoint re-reads `ITEMODR.DAT` on every request so item moves are reflected immediately. Items without an ODR entry (e.g. armory pieces the player has never moved) show `location: null` and sort to the end of their group.
-
-item ids
-```
-49758 - twine
-49759 - glaze
-49757 - solvent
-49760 - book 1
-49761 - book 2
-49763 - book 3
-49764 - book 4
-
-49739 - head coffer
-49743 - feet coffer
-
-49745 - necklace coffer
-49747 - ring coffer
-```
-
-currency ids
-```
-1 - gil
-48 - allagan tomestone of mathematics - old currency (not used for gear)
-49 - allagan tomestone of mnemonics - current raid tomestone currency

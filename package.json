@@ -5,7 +5,9 @@
   "scripts": {
     "start": "bun run src/server/index.ts",
     "desktop": "electrobun dev",
-    "desktop:build": "electrobun build canary"
+    "desktop:build": "electrobun build canary",
+    "build:ui": "bun build src/ui/main.ts --outfile public/bundle.js --target browser",
+    "watch:ui": "bun build src/ui/main.ts --outfile public/bundle.js --target browser --watch"
   },
   "devDependencies": {
     "@types/bun": "latest",

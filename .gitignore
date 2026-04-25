@@ -35,3 +35,6 @@ CLAUDE.md
 *.claude
 
 build/*
+
+# Frontend bundle
+public/bundle.js

@@ -82,6 +82,7 @@ let acquisitionData = null;      // SlotAcquisitionStatus[] | null
 let currentJobKey = null;        // "role/job" slug, to avoid re-fetching BIS links on same job
 let currentJobAbbrev = null;     // uppercase job abbreviation, e.g. "WAR"
 let currentCatalog = null;       // BisCatalog | null
+let bisJobFilter = "";           // "" = all classes
 let activeTab = 'gear';          // currently visible main tab
 
 // ---- DOM helpers --------------------------------------------------------
@@ -112,7 +113,10 @@ function switchTab(name) {
     btn.classList.toggle('text-gray-500',     !isActive);
     btn.classList.toggle('border-transparent', !isActive);
   }
-  if (name === 'bis')         renderSavedSetsTab();
+  if (name === 'bis') {
+    if (!currentCatalog) loadCatalog().then(() => renderSavedSetsTab());
+    else renderSavedSetsTab();
+  }
   if (name === 'upgrades')    renderUpgradesTab();
   if (name === 'acquisition') renderAcquisitionPanel();
 }
@@ -786,11 +790,27 @@ async function patchSet(id, patch) {
 function renderSavedSetsTab() {
   const list = el("saved-sets-list");
   const allSets = currentCatalog?.sets ?? [];
+
+  // Rebuild filter dropdown, preserving current selection
+  const filterSel = el("sel-bis-job-filter");
+  const prevFilter = filterSel.value;
+  const jobs = [...new Set(allSets.map(e => e.set.job))].sort();
+  filterSel.innerHTML = `<option value="">All Classes</option>` +
+    jobs.map(j => `<option value="${j}"${j === prevFilter ? " selected" : ""}>${j}</option>`).join("");
+  bisJobFilter = filterSel.value;
+
   if (allSets.length === 0) {
     list.innerHTML = `<p class="text-xs text-gray-500 italic">No sets saved yet. Use Paste URL or The Balance to add one.</p>`;
     return;
   }
-  list.innerHTML = allSets.map(entry => {
+
+  const visibleSets = bisJobFilter ? allSets.filter(e => e.set.job === bisJobFilter) : allSets;
+  if (visibleSets.length === 0) {
+    list.innerHTML = `<p class="text-xs text-gray-500 italic">No sets saved for this class.</p>`;
+    return;
+  }
+
+  list.innerHTML = visibleSets.map(entry => {
     const isDefault = currentCatalog?.preferences?.[entry.set.job] === entry.id;
     const safeName = entry.set.name.replace(/"/g, "&quot;");
     return `
@@ -1091,6 +1111,10 @@ function clearComparison() {
 // ---- Init ---------------------------------------------------------------
 
 el("sel-bis-link").addEventListener("change", onBisLinkChange);
+el("sel-bis-job-filter").addEventListener("change", () => {
+  bisJobFilter = el("sel-bis-job-filter").value;
+  renderSavedSetsTab();
+});
 el("btn-compare").addEventListener("click", runComparison);
 el("btn-manage-sets").addEventListener("click", () => switchTab('bis'));
 el("btn-clear-compare").addEventListener("click", clearComparison);
@@ -1227,6 +1251,7 @@ document.addEventListener("pointerup", () => {
   resizeState = null;
 });
 
+loadCatalog();
 loadGear();
 
 // ---- Settings modal ----

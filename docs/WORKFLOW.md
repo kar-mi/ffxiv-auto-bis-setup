@@ -282,5 +282,4 @@ interface LocalBisEntry {
 
 | Feature | Notes |
 |---------|-------|
-| Lodestone scraping | No `GET/POST /user/:id` routes; character data is not fetched |
 | Bundler | Replace CDN Tailwind with a proper build step; convert `public/app.js` to ESM modules |

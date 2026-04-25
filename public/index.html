@@ -199,7 +199,13 @@
         </div>
 
         <div id="tab-panel-saved" class="flex flex-col gap-2">
-          <div id="saved-sets-list" class="flex flex-col gap-1.5 max-h-[60vh] overflow-y-auto"></div>
+          <div class="flex items-center gap-2">
+            <label class="text-[10px] text-gray-500 uppercase tracking-wide flex-shrink-0">Class</label>
+            <select id="sel-bis-job-filter" class="bg-ffxiv-dark border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1 focus:outline-none focus:border-ffxiv-gold flex-1">
+              <option value="">All Classes</option>
+            </select>
+          </div>
+          <div id="saved-sets-list" class="flex flex-col gap-1.5 max-h-[55vh] overflow-y-auto"></div>
         </div>
 
         <div id="tab-panel-manual" class="hidden flex-col gap-3">

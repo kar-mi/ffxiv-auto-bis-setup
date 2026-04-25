@@ -14,6 +14,13 @@
   ],
   "upgradeMaterials": [
     {
+      "key": "solvent",
+      "itemId": 49757,
+      "name": "Thundersteeped Solvent",
+      "bookIndex": 2,
+      "bookCount": 4
+    },
+    {
       "key": "twine",
       "itemId": 49758,
       "name": "Thundersteeped Twine",
@@ -26,19 +33,12 @@
       "name": "Thundersteeping Glaze",
       "bookIndex": 1,
       "bookCount": 3
-    },
-    {
-      "key": "solvent",
-      "itemId": 49757,
-      "name": "Thundersteeped Solvent",
-      "bookIndex": 2,
-      "bookCount": 4
     }
   ],
   "slots": {
     "mainHand": {
-      "_note": "No coffer. Path type (raid book purchase vs tome upgrade) is determined at runtime via XIVAPI iLevel check.",
-      "cofferItemId": 49739,
+      "_note": "Coffer or raid books, never tome for bis",
+      "cofferItemId": 49738,
       "bookIndex": 3,
       "bookCount": 8,
       "tomeCost": 500,
@@ -86,7 +86,6 @@
       "upgradeMaterialKey": "twine"
     },
     "earRings": {
-      "_guess": "cofferItemId 49744 guessed — sequential from necklace (49745)",
       "cofferItemId": 49744,
       "bookIndex": 0,
       "bookCount": 3,
@@ -101,7 +100,6 @@
       "upgradeMaterialKey": "glaze"
     },
     "bracelet": {
-      "_guess": "cofferItemId 49746 guessed — sequential between necklace (49745) and ring (49747)",
       "cofferItemId": 49746,
       "bookIndex": 0,
       "bookCount": 3,

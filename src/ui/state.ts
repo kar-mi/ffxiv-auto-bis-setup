@@ -1,5 +1,5 @@
 import { signal } from "@preact/signals";
-import type { GearSnapshot, GearsetComparison, BisGearSet, BisCatalog } from "../types.ts";
+import type { GearSnapshot, GearsetComparison, BisGearSet, BisCatalog, SlotName } from "../types.ts";
 import type { SlotAcquisitionStatus } from "../acquisition/types.ts";
 import type { ItemData } from "../xivapi/item-data.ts";
 
@@ -15,6 +15,7 @@ export const currentJobAbbrev   = signal<string | null>(null);
 export const currentCatalog     = signal<BisCatalog | null>(null);
 export const bisJobFilter       = signal("");
 export const activeTab          = signal("gear");
+export const selectedSlot       = signal<SlotName | null>(null);
 
 // Compatibility shim — existing modules that use `state.X` / `state.X = y` need no changes.
 export const state = {

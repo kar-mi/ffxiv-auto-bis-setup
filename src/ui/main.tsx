@@ -3,11 +3,12 @@ import type { RaidTier } from "../types.ts";
 import { logger, el } from "./dom.ts";
 import { switchTab, switchManageSetsTab } from "./tabs.ts";
 import { loadGear } from "./gear-load.ts";
-import { closeModal } from "./render/modal.ts";
 import { renderUpgradesTab, UpgradesTab } from "./render/UpgradesTab.tsx";
 import { AcquisitionTab } from "./render/AcquisitionTab.tsx";
 import { GearTab } from "./render/GearTab.tsx";
 import { SavedSetsTab } from "./render/BisTab.tsx";
+import { CompareModal } from "./render/CompareModal.tsx";
+import { SettingsModal } from "./render/SettingsModal.tsx";
 import { loadCatalog, addSetFromUrl, renderSavedSetsTab } from "./bis/catalog.ts";
 import { loadBalanceLinksForModal } from "./bis/balance.ts";
 import { runComparison, onBisLinkChange, clearComparison } from "./bis/comparison.ts";
@@ -69,11 +70,6 @@ document.querySelectorAll<HTMLElement>(".main-tab-btn").forEach(btn => {
   btn.addEventListener("click", () => switchTab(btn.dataset["tab"] ?? "gear"));
 });
 
-el("modal-close").addEventListener("click", closeModal);
-el("compare-modal").addEventListener("click", e => {
-  if (e.target === el("compare-modal")) closeModal();
-});
-
 // ---- Init ----
 
 initWindowControls();
@@ -83,6 +79,8 @@ render(<UpgradesTab />,      el("upgrades-content"));
 render(<AcquisitionTab />,  el("acquisition-content"));
 render(<GearTab />,         el("gear-content"));
 render(<SavedSetsTab />,    el("tab-panel-saved"));
+render(<CompareModal />,    el("compare-modal-root"));
+render(<SettingsModal />,   el("settings-modal-root"));
 
 void loadCatalog();
 void loadGear();

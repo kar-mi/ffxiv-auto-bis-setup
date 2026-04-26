@@ -1,10 +1,11 @@
+import { render } from "preact";
 import type { RaidTier } from "../types.ts";
 import { logger, el } from "./dom.ts";
 import { state } from "./state.ts";
 import { switchTab, switchManageSetsTab } from "./tabs.ts";
 import { loadGear } from "./gear-load.ts";
 import { closeModal } from "./render/modal.ts";
-import { renderUpgradesTab } from "./render/upgrades.ts";
+import { renderUpgradesTab, UpgradesTab } from "./render/UpgradesTab.tsx";
 import { loadCatalog, addSetFromUrl, renderSavedSetsTab } from "./bis/catalog.ts";
 import { loadBalanceLinksForModal } from "./bis/balance.ts";
 import { runComparison, onBisLinkChange, clearComparison } from "./bis/comparison.ts";
@@ -80,6 +81,8 @@ el("compare-modal").addEventListener("click", e => {
 
 initWindowControls();
 initResize();
+
+render(<UpgradesTab />, el("upgrades-content"));
 
 void loadCatalog();
 void loadGear();

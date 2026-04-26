@@ -1,7 +1,7 @@
 import { el } from "./dom.ts";
 import { state } from "./state.ts";
 import { loadCatalog, renderSavedSetsTab } from "./bis/catalog.ts";
-import { renderUpgradesTab } from "./render/upgrades.ts";
+import { renderUpgradesTab } from "./render/UpgradesTab.tsx";
 import { renderAcquisitionPanel } from "./render/acquisition.ts";
 
 const MAIN_TABS   = ["gear", "bis", "upgrades", "acquisition"] as const;

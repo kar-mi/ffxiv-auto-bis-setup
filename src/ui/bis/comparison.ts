@@ -7,7 +7,7 @@ import { state } from "../state.ts";
 import { fetchItemData } from "../api.ts";
 import { renderGear, crystalJobName } from "../render/gear.ts";
 import { renderAcquisitionPanel } from "../render/acquisition.ts";
-import { renderUpgradesTab } from "../render/upgrades.ts";
+import { renderUpgradesTab } from "../render/UpgradesTab.tsx";
 import { loadCatalog } from "./catalog.ts";
 
 export async function runComparison(): Promise<void> {

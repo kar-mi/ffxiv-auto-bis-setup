@@ -83,10 +83,36 @@ src/server/index.ts  (Bun.serve)                                            │
 ### UI Path
 
 ```
-public/index.html  (Tailwind CSS via CDN)
-public/app.js
-  - renders gear slots, comparison overlay, BIS catalog, acquisition status
-  - uses /pcap/gear, /compare, /needs, /acquisition, /bis/catalog, etc.
+src/ui/main.ts  (entry point — built to public/bundle.js via bun build:ui)
+  │
+  ├── gear-load.ts          loadGear() — fetches /pcap/gear, resolves item data, drives render
+  ├── tabs.ts               switchTab(), switchManageSetsTab()
+  ├── state.ts              shared mutable state (snapshot, comparison, catalog, …)
+  ├── api.ts                fetchItemData() — proxies GET /item/:id with a process-lifetime cache
+  ├── constants.ts          SLOT_LABELS, JOBS, LEFT/RIGHT_SLOTS, API_BASE, CORNERS
+  ├── dom.ts                el(), setStatus(), clearStatus(), logger
+  ├── types.ts              UpgradeItemsResponse (frontend-only shapes)
+  │
+  ├── render/
+  │   ├── gear.ts           renderGear(), renderGearItem(), renderCrystal(), renderMateria*()
+  │   ├── modal.ts          openCompareModal(), closeModal(), renderMateriaAdvice(),
+  │   │                     renderAcquisitionAdvice(), renderModalItemColumn()
+  │   ├── acquisition.ts    renderAcquisitionPanel(), pill()
+  │   └── upgrades.ts       renderUpgradesTab() — fetches GET /upgrade-items
+  │
+  ├── bis/
+  │   ├── catalog.ts        loadCatalog(), renderSavedSetsTab(), addSetFromUrl(),
+  │   │                     patchSet(), refreshBisDropdown(), tierSelectHtml()
+  │   ├── balance.ts        loadBalanceLinksForModal() — fetches GET /balance/:role/:job
+  │   └── comparison.ts     runComparison(), autoDetectJob(), onBisLinkChange(), clearComparison()
+  │
+  └── window/
+      ├── resize.ts         initResize() — pointer-event window resize handles
+      └── controls.ts       initWindowControls() — close/minimize/maximize/settings modal
+
+public/index.html  (Tailwind CSS via CDN — see docs/TODO.md for migration plan)
+public/styles.css  (extracted from inline <style>)
+public/bundle.js   (built output — gitignored)
 ```
 
 ---
@@ -161,6 +187,32 @@ src/
 ├── server/
 │   └── index.ts             — startServer(port, publicDir, projectRoot)
 │                              Bun HTTP server; also the standalone entry point
+│
+├── ui/                      — frontend TypeScript; built to public/bundle.js
+│   ├── main.ts              — entry point; wires all event listeners, calls loadCatalog + loadGear
+│   ├── constants.ts         — SLOT_LABELS, JOBS, LEFT/RIGHT_SLOTS, API_BASE, CORNERS
+│   ├── types.ts             — frontend-only interfaces (UpgradeItemsResponse, UpgradeItemEntry)
+│   ├── state.ts             — shared mutable state object + mergedItemDataMap()
+│   ├── dom.ts               — el(), setStatus(), clearStatus(), logger
+│   ├── api.ts               — fetchItemData(id); proxies GET /item/:id with in-memory cache
+│   ├── gear-load.ts         — loadGear(); fetches snapshot, resolves item data, triggers render
+│   ├── tabs.ts              — switchTab(), switchManageSetsTab()
+│   ├── render/
+│   │   ├── gear.ts          — renderGear(), renderGearItem(), renderCrystal(),
+│   │   │                      renderMateria(), renderMateriaCompare(), crystalJobName()
+│   │   ├── modal.ts         — openCompareModal(), closeModal(), renderMateriaAdvice(),
+│   │   │                      renderAcquisitionAdvice(), renderModalItemColumn()
+│   │   ├── acquisition.ts   — renderAcquisitionPanel(), pill()
+│   │   └── upgrades.ts      — renderUpgradesTab(); fetches GET /upgrade-items
+│   ├── bis/
+│   │   ├── catalog.ts       — loadCatalog(), renderSavedSetsTab(), addSetFromUrl(),
+│   │   │                      patchSet(), refreshBisDropdown(), tierSelectHtml()
+│   │   ├── balance.ts       — loadBalanceLinksForModal()
+│   │   └── comparison.ts    — runComparison(), autoDetectJob(), onBisLinkChange(),
+│   │                          clearComparison()
+│   └── window/
+│       ├── resize.ts        — initResize(); pointer-event window resize handles
+│       └── controls.ts      — initWindowControls(); close/minimize/maximize/settings
 │
 └── xivapi/
     └── item-data.ts         — fetchItemData(itemId) → ItemData
@@ -282,4 +334,5 @@ interface LocalBisEntry {
 
 | Feature | Notes |
 |---------|-------|
-| Bundler | Replace CDN Tailwind with a proper build step; convert `public/app.js` to ESM modules |
+| Tailwind build step | Replace CDN Tailwind with Tailwind CLI / PostCSS; see `docs/TODO.md` |
+| Component rendering | Tab sections are static HTML; see `docs/TODO.md` for migration plan |

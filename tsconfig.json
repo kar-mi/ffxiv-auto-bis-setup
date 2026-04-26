@@ -12,6 +12,10 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
+    // JSX
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+
     // Best practices
     "strict": true,
     "skipLibCheck": true,

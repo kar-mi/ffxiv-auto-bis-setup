@@ -6,8 +6,8 @@
     "start": "bun run src/server/index.ts",
     "desktop": "electrobun dev",
     "desktop:build": "electrobun build canary",
-    "build:ui": "bun build src/ui/main.ts --outfile public/bundle.js --target browser",
-    "watch:ui": "bun build src/ui/main.ts --outfile public/bundle.js --target browser --watch"
+    "build:ui": "bun build src/ui/main.tsx --outfile public/bundle.js --target browser",
+    "watch:ui": "bun build src/ui/main.tsx --outfile public/bundle.js --target browser --watch"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -15,7 +15,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@ffxiv-teamcraft/pcap-ffxiv": "1.2.30"
+    "@ffxiv-teamcraft/pcap-ffxiv": "1.2.30",
+    "@preact/signals": "^2.9.0",
+    "preact": "^10.29.1"
   },
   "trustedDependencies": [
     "@ffxiv-teamcraft/dll-inject"

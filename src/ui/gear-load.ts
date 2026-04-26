@@ -3,13 +3,10 @@ import { API_BASE } from "./constants.ts";
 import { el, setStatus, clearStatus, logger } from "./dom.ts";
 import { state } from "./state.ts";
 import { fetchItemData } from "./api.ts";
-import { renderGear } from "./render/gear.ts";
 import { autoDetectJob, runComparison } from "./bis/comparison.ts";
 
 export async function loadGear(): Promise<void> {
   logger.debug("[app] loadGear called");
-  el("gear-list").classList.add("hidden");
-  el("gear-empty").classList.add("hidden");
   el("snapshot-meta").classList.add("hidden");
   setStatus("Fetching gear from packet capture...");
 
@@ -46,7 +43,6 @@ export async function loadGear(): Promise<void> {
   state.currentItemDataMap = new Map(resolved);
 
   clearStatus();
-  renderGear();
 
   const meta = el("snapshot-meta");
   if (snapshot.capturedAt) {

@@ -1,9 +1,6 @@
 import type { EquipmentPiece, SlotComparison } from "../../types.ts";
 import type { ItemData } from "../../xivapi/item-data.ts";
-import { SLOT_LABELS, LEFT_SLOTS, RIGHT_SLOTS, CORNERS } from "../constants.ts";
-import { el } from "../dom.ts";
-import { state, mergedItemDataMap } from "../state.ts";
-import { openCompareModal } from "./modal.ts";
+import { SLOT_LABELS, CORNERS } from "../constants.ts";
 
 export function renderMateria(piece: EquipmentPiece, itemDataMap: Map<number, ItemData>): string {
   const totalSlots = piece.materiaSlots ?? (piece.canOvermeld ? 5 : 2);
@@ -149,39 +146,5 @@ export function renderGearItem(
     </div>`;
 }
 
-export function renderGear(): void {
-  if (!state.currentSnapshot) {
-    el("gear-empty").classList.remove("hidden");
-    return;
-  }
-  el("gear-empty").classList.add("hidden");
-
-  const merged = mergedItemDataMap();
-  const slotCompMap: Record<string, SlotComparison> = {};
-  for (const sc of state.comparisonData?.slots ?? []) {
-    slotCompMap[sc.slot] = sc;
-  }
-
-  const leftHtml  = LEFT_SLOTS.map((slot, i) =>
-    renderGearItem(slot, state.currentSnapshot!.items[slot] ?? null, merged, slotCompMap[slot], i),
-  ).join("");
-  const rightHtml = RIGHT_SLOTS.map((slot, i) =>
-    renderGearItem(slot, state.currentSnapshot!.items[slot] ?? null, merged, slotCompMap[slot], LEFT_SLOTS.length + i),
-  ).join("");
-  const crystalHtml = renderCrystal(state.currentSnapshot.items["crystal"] ?? null, merged);
-
-  const gearList = el("gear-list");
-  gearList.innerHTML = `
-    <div class="flex gap-3 items-start">
-      <div class="flex-1 min-w-0 space-y-2">${leftHtml}</div>
-      <div class="flex-shrink-0 flex items-center justify-center self-center">${crystalHtml}</div>
-      <div class="flex-1 min-w-0 space-y-2">${rightHtml}</div>
-    </div>`;
-  gearList.classList.remove("hidden");
-
-  gearList.querySelectorAll<HTMLElement>("[data-slot]").forEach(card => {
-    card.addEventListener("click", () => {
-      if (card.dataset["slot"]) openCompareModal(card.dataset["slot"]);
-    });
-  });
-}
+// Replaced by <GearTab /> component in GearTab.tsx — signals drive re-renders.
+export function renderGear(): void {}

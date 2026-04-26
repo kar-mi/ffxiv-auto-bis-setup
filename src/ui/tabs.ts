@@ -2,7 +2,7 @@ import { el } from "./dom.ts";
 import { state } from "./state.ts";
 import { loadCatalog, renderSavedSetsTab } from "./bis/catalog.ts";
 import { renderUpgradesTab } from "./render/UpgradesTab.tsx";
-import { renderAcquisitionPanel } from "./render/acquisition.ts";
+import { renderAcquisitionPanel } from "./render/AcquisitionTab.tsx";
 
 const MAIN_TABS   = ["gear", "bis", "upgrades", "acquisition"] as const;
 const MANAGE_TABS = ["saved", "manual", "balance"] as const;

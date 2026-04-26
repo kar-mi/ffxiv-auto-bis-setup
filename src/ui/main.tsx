@@ -1,11 +1,13 @@
 import { render } from "preact";
 import type { RaidTier } from "../types.ts";
 import { logger, el } from "./dom.ts";
-import { state } from "./state.ts";
 import { switchTab, switchManageSetsTab } from "./tabs.ts";
 import { loadGear } from "./gear-load.ts";
 import { closeModal } from "./render/modal.ts";
 import { renderUpgradesTab, UpgradesTab } from "./render/UpgradesTab.tsx";
+import { AcquisitionTab } from "./render/AcquisitionTab.tsx";
+import { GearTab } from "./render/GearTab.tsx";
+import { SavedSetsTab } from "./render/BisTab.tsx";
 import { loadCatalog, addSetFromUrl, renderSavedSetsTab } from "./bis/catalog.ts";
 import { loadBalanceLinksForModal } from "./bis/balance.ts";
 import { runComparison, onBisLinkChange, clearComparison } from "./bis/comparison.ts";
@@ -51,11 +53,6 @@ async function confirmManualAdd(): Promise<void> {
 
 el("sel-bis-link").addEventListener("change", onBisLinkChange);
 
-el("sel-bis-job-filter").addEventListener("change", () => {
-  state.bisJobFilter = (el("sel-bis-job-filter") as HTMLSelectElement).value;
-  renderSavedSetsTab();
-});
-
 el("btn-compare").addEventListener("click",       () => { void runComparison(); });
 el("btn-manage-sets").addEventListener("click",   () => switchTab("bis"));
 el("btn-clear-compare").addEventListener("click", clearComparison);
@@ -82,7 +79,10 @@ el("compare-modal").addEventListener("click", e => {
 initWindowControls();
 initResize();
 
-render(<UpgradesTab />, el("upgrades-content"));
+render(<UpgradesTab />,      el("upgrades-content"));
+render(<AcquisitionTab />,  el("acquisition-content"));
+render(<GearTab />,         el("gear-content"));
+render(<SavedSetsTab />,    el("tab-panel-saved"));
 
 void loadCatalog();
 void loadGear();

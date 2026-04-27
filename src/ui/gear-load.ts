@@ -1,5 +1,5 @@
 import type { GearSnapshot } from "../types.ts";
-import { API_BASE } from "./constants.ts";
+import { API_BASE, JOB_ABBREV_TO_CLASS_ID } from "./constants.ts";
 import { setStatus, clearStatus, logger } from "./dom.ts";
 import {
   state, snapshotMeta, bisLinkUrl,
@@ -111,12 +111,17 @@ export async function loadGear(): Promise<void> {
     setManualJobAbbrev(null);
     await loadCachedJobs();
     await autoDetectJob(state.currentItemDataMap);
-  } else {
-    if (manualJobAbbrev.value) {
-      await selectJob(manualJobAbbrev.value);
-    } else {
-      await autoDetectJob(state.currentItemDataMap);
+  } else if (manualJobAbbrev.value) {
+    // gear.json may belong to a different job than the one the user had selected.
+    // Load the job-specific cache so the gear display matches the dropdown.
+    const classId = JOB_ABBREV_TO_CLASS_ID[manualJobAbbrev.value];
+    if (classId !== undefined) {
+      await loadGearForClassId(classId, manualJobAbbrev.value);
+      return; // loadGearForClassId handles comparison
     }
+    await autoDetectJob(state.currentItemDataMap);
+  } else {
+    await autoDetectJob(state.currentItemDataMap);
   }
 
   if (bisLinkUrl.value) await runComparison();

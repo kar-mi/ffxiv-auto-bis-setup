@@ -7,9 +7,11 @@ import {
   bisLinkEntries, bisLinkVisible, bisLinkUrl,
   compareVisible, clearVisible,
   snapshotMeta, statusMsg, statusIsError,
+  currentJobAbbrev, cachedJobs,
 } from "../state.ts";
-import { loadGear } from "../gear-load.ts";
+import { loadGear, loadGearForClassId } from "../gear-load.ts";
 import { runComparison, clearComparison } from "../bis/comparison.ts";
+import { JOBS, JOB_ABBREV_TO_CLASS_ID } from "../constants.ts";
 import { addSetFromUrl } from "../bis/catalog.ts";
 import {
   balanceTier, balanceLoading, balanceLinks, balanceError,
@@ -129,6 +131,51 @@ function GearTabPanel() {
       </div>
 
       <div class="mb-4 flex flex-wrap items-end gap-3">
+        {(() => {
+          const cached = cachedJobs.value;
+          const cachedClassIds = new Set(cached.map(c => c.classId));
+          const visibleJobs = cached.length > 0
+            ? JOBS.filter(j => {
+                const cid = JOB_ABBREV_TO_CLASS_ID[j.abbrev];
+                return cid !== undefined && cachedClassIds.has(cid);
+              })
+            : [];
+          if (visibleJobs.length === 0) return null;
+          const roles: Array<{ label: string; key: string }> = [
+            { key: "tanks",   label: "Tanks"   },
+            { key: "healers", label: "Healers" },
+            { key: "melee",   label: "Melee"   },
+            { key: "ranged",  label: "Ranged"  },
+            { key: "casters", label: "Casters" },
+          ];
+          return (
+            <div class="flex flex-col gap-1">
+              <label class="text-[10px] text-gray-500 uppercase tracking-wide">Job</label>
+              <select
+                value={currentJobAbbrev.value ?? ""}
+                class="bg-ffxiv-panel border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold"
+                onChange={(e) => {
+                  const abbrev = (e.currentTarget as HTMLSelectElement).value;
+                  if (!abbrev) return;
+                  const classId = JOB_ABBREV_TO_CLASS_ID[abbrev];
+                  if (classId === undefined) return;
+                  void loadGearForClassId(classId, abbrev);
+                }}
+              >
+                <option value="">— Job —</option>
+                {roles.map(({ key, label }) => {
+                  const roleJobs = visibleJobs.filter(j => j.role === key);
+                  if (roleJobs.length === 0) return null;
+                  return (
+                    <optgroup key={key} label={label}>
+                      {roleJobs.map(j => <option key={j.abbrev} value={j.abbrev}>{j.label}</option>)}
+                    </optgroup>
+                  );
+                })}
+              </select>
+            </div>
+          );
+        })()}
         {bisLinkVisible.value && (
           <div class="flex flex-col gap-1">
             <label class="text-[10px] text-gray-500 uppercase tracking-wide">BIS Set</label>

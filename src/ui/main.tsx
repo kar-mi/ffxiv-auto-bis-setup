@@ -2,7 +2,7 @@ import { render } from "preact";
 import { logger, el } from "./dom.ts";
 import { App } from "./render/App.tsx";
 import { loadCatalog } from "./bis/catalog.ts";
-import { loadGear } from "./gear-load.ts";
+import { loadGear, loadCachedJobs } from "./gear-load.ts";
 import { initResize } from "./window/resize.ts";
 import { initWindowControls } from "./window/controls.ts";
 
@@ -13,4 +13,5 @@ initResize();
 render(<App />, el("app-root"));
 
 void loadCatalog();
+void loadCachedJobs();
 void loadGear();

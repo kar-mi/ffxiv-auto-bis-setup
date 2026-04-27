@@ -68,25 +68,19 @@ export async function runComparison(): Promise<void> {
   clearVisible.value = true;
 }
 
-export async function autoDetectJob(itemDataMap: Map<number, ItemData>): Promise<void> {
-  const crystal = state.currentSnapshot?.items?.crystal;
-  if (!crystal) return;
-  const data = itemDataMap.get(crystal.itemId);
-  if (!data?.name) return;
-
-  const jobLabel = crystalJobName(data.name);
-  const job = JOBS.find(j => j.label.toLowerCase() === jobLabel.toLowerCase());
+export async function selectJob(abbrev: string): Promise<void> {
+  const job = JOBS.find(j => j.abbrev === abbrev);
   if (!job) return;
 
-  state.currentJobAbbrev = job.abbrev;
+  state.currentJobAbbrev = abbrev;
   if (!state.currentCatalog) await loadCatalog();
 
   const jobKey = `${job.role}/${job.job}`;
   if (jobKey === state.currentJobKey) return;
   state.currentJobKey = jobKey;
 
-  const savedEntries = (state.currentCatalog?.sets ?? []).filter(e => e.set.job === job.abbrev);
-  const preferredId  = state.currentCatalog?.preferences?.[job.abbrev] ?? null;
+  const savedEntries = (state.currentCatalog?.sets ?? []).filter(e => e.set.job === abbrev);
+  const preferredId  = state.currentCatalog?.preferences?.[abbrev] ?? null;
 
   bisLinkEntries.value = savedEntries.map(e => ({
     url:   e.url,
@@ -114,16 +108,30 @@ export async function autoDetectJob(itemDataMap: Map<number, ItemData>): Promise
   }
 }
 
+export async function autoDetectJob(itemDataMap: Map<number, ItemData>): Promise<void> {
+  const crystal = state.currentSnapshot?.items?.crystal;
+  if (!crystal) return;
+  const data = itemDataMap.get(crystal.itemId);
+  if (!data?.name) return;
+
+  const jobLabel = crystalJobName(data.name);
+  const job = JOBS.find(j => j.label.toLowerCase() === jobLabel.toLowerCase());
+  if (!job) return;
+
+  await selectJob(job.abbrev);
+}
+
 export function clearComparison(): void {
   state.comparisonData   = null;
   state.currentBisSet    = null;
   state.bisItemDataMap   = new Map();
   state.acquisitionData  = null;
-  state.currentJobKey    = null;
-  state.currentJobAbbrev = null;
   bisLinkEntries.value   = [];
   bisLinkVisible.value   = false;
   bisLinkUrl.value       = "";
   compareVisible.value   = false;
   clearVisible.value     = false;
+  // Job selection intentionally kept so the picker stays populated after clearing.
+  // currentJobKey is also cleared so the next selectJob call re-runs catalog filtering.
+  state.currentJobKey    = null;
 }

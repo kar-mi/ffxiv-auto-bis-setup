@@ -17,6 +17,18 @@ export const bisJobFilter       = signal("");
 export const activeTab          = signal("gear");
 export const selectedSlot       = signal<SlotName | null>(null);
 
+const _storedJob = typeof localStorage !== "undefined" ? (localStorage.getItem("ffxiv-manual-job") ?? null) : null;
+export const manualJobAbbrev    = signal<string | null>(_storedJob);
+
+export interface CachedJobEntry { classId: number; capturedAt: string }
+export const cachedJobs         = signal<CachedJobEntry[]>([]);
+
+export function setManualJobAbbrev(abbrev: string | null): void {
+  manualJobAbbrev.value = abbrev;
+  if (abbrev) localStorage.setItem("ffxiv-manual-job", abbrev);
+  else localStorage.removeItem("ffxiv-manual-job");
+}
+
 // BIS link dropdown — driven by comparison/catalog, consumed by GearTabPanel
 export const bisLinkEntries     = signal<{ url: string; label: string }[]>([]);
 export const bisLinkVisible     = signal(false);

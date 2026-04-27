@@ -22,6 +22,10 @@ import { computeAcquisition, buildCounts } from "../acquisition/compute.ts";
 import { logInventorySnapshot, INVENTORY_LOG_ENABLED } from "../debug/inventory-log.ts";
 import { parseItemOdr, buildPosMap } from "../dat/itemodr.ts";
 import { getFfxivDataDir, findItemodrPath } from "../dat/finder.ts";
+import {
+  loadGearCache, saveGearCache, loadInventoryCache, saveInventoryCache,
+  saveJobGearCache, loadJobGearCache, listJobGearCaches,
+} from "../pcap/snapshot-cache.ts";
 
 // Overridden at runtime by startServer() when called from the desktop entry.
 let PROJECT_ROOT = path.join(import.meta.dir, "..", "..");
@@ -29,13 +33,30 @@ let PROJECT_ROOT = path.join(import.meta.dir, "..", "..");
 
 let latestPcapGear: GearSnapshot | null = null;
 let latestInventory: InventorySnapshot | null = null;
+let gearIsLive = false;
+let inventoryIsLive = false;
+
+// selectedGear is the snapshot used by all comparison endpoints.
+// It tracks the latest pcap gear by default, but can be overridden to a
+// per-job cached snapshot when the user switches jobs in the UI.
+let selectedGear: GearSnapshot | null = null;
 
 export function getLatestPcapGear(): GearSnapshot | null {
   return latestPcapGear;
 }
 
+export function getSelectedGear(): GearSnapshot | null {
+  return selectedGear ?? latestPcapGear;
+}
+
 export function setLatestPcapGear(snapshot: GearSnapshot): void {
   latestPcapGear = snapshot;
+  selectedGear = snapshot;
+  gearIsLive = true;
+  void saveGearCache(PROJECT_ROOT, snapshot);
+  if (snapshot.classId !== undefined) {
+    void saveJobGearCache(PROJECT_ROOT, snapshot.classId, snapshot);
+  }
 }
 
 export function getLatestInventory(): InventorySnapshot | null {
@@ -44,6 +65,8 @@ export function getLatestInventory(): InventorySnapshot | null {
 
 export function setLatestInventory(snapshot: InventorySnapshot): void {
   latestInventory = snapshot;
+  inventoryIsLive = true;
+  void saveInventoryCache(PROJECT_ROOT, snapshot);
   void logInventorySnapshot(snapshot);
 }
 
@@ -88,6 +111,14 @@ async function serveStatic(pathname: string, publicDir: string): Promise<Respons
 
 export function startServer(port = 3000, publicDir = path.join(import.meta.dir, "..", "..", "public"), projectRoot?: string): ReturnType<typeof Bun.serve> {
   if (projectRoot) PROJECT_ROOT = projectRoot;
+
+  // Pre-populate from disk cache. Fires in background — completes well before
+  // the browser page loads and makes its first fetch requests.
+  void Promise.all([
+    loadGearCache(PROJECT_ROOT).then(g => { if (g && !latestPcapGear) latestPcapGear = g; }),
+    loadInventoryCache(PROJECT_ROOT).then(i => { if (i && !latestInventory) latestInventory = i; }),
+  ]);
+
   const server = Bun.serve({
     port,
     async fetch(req) {
@@ -148,7 +179,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         if (req.method === "GET") {
           const gear = getLatestPcapGear();
           if (!gear) return notFound("No packet-captured gear available yet");
-          return json(gear);
+          return json({ ...gear, fromCache: !gearIsLive });
         }
         if (req.method === "POST") {
           const body = (await req.json()) as Record<string, unknown>;
@@ -175,7 +206,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         if (req.method === "GET") {
           const inv = getLatestInventory();
           if (!inv) return notFound("No packet-captured inventory available yet");
-          return json(inv);
+          return json({ ...inv, fromCache: !inventoryIsLive });
         }
         if (req.method === "POST") {
           const body = (await req.json()) as Record<string, unknown>;
@@ -186,6 +217,43 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
           return json({ ok: true });
         }
         return json({ error: "Method not allowed" }, 405);
+      }
+
+      // GET /pcap/gear-cache
+      //   Lists all per-job gear cache files with their classId and capturedAt.
+      //   Used by the frontend to populate the job dropdown with only cached jobs.
+      //
+      //   Response: Array<{ classId: number; capturedAt: string }>
+      if (pathname === "/pcap/gear-cache" && req.method === "GET") {
+        return json(await listJobGearCaches(PROJECT_ROOT));
+      }
+
+      // GET /pcap/gear-cache/:classId
+      //   Returns the cached gear snapshot for a specific FFXIV classId.
+      //   Used by the frontend when the user switches jobs via the dropdown.
+      //
+      //   Response: GearSnapshot & { fromCache: true }
+      const jobCacheMatch = pathname.match(/^\/pcap\/gear-cache\/(\d+)$/);
+      if (jobCacheMatch && req.method === "GET") {
+        const classId = Number(jobCacheMatch[1]);
+        const snap = await loadJobGearCache(PROJECT_ROOT, classId);
+        if (!snap) return notFound(`No cached gear for classId ${classId}`);
+        return json({ ...snap, fromCache: true });
+      }
+
+      // POST /pcap/gear-selected
+      //   Sets the gear snapshot used by comparison endpoints (/compare, /needs,
+      //   /acquisition, /upgrade-items) without touching the pcap cache or the
+      //   live-capture flag.  Called by the frontend when the user switches jobs.
+      //
+      //   Body: GearSnapshot
+      if (pathname === "/pcap/gear-selected" && req.method === "POST") {
+        const body = (await req.json()) as Record<string, unknown>;
+        if (typeof body["capturedAt"] !== "string" || typeof body["items"] !== "object" || body["items"] === null) {
+          return json({ error: "Invalid GearSnapshot: missing capturedAt or items" }, 400);
+        }
+        selectedGear = body as unknown as GearSnapshot;
+        return json({ ok: true });
       }
 
       // -----------------------------------------------------------------------
@@ -406,7 +474,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         const params = new URL(req.url).searchParams;
         const xivgearUrl = params.get("url");
         if (!xivgearUrl) return json({ error: "Missing ?url= parameter" }, 400);
-        const gear = getLatestPcapGear();
+        const gear = getSelectedGear();
         if (!gear) return json({ error: "No packet-captured gear available yet" }, 409);
         const setParam = params.get("set") ?? undefined;
         try {
@@ -446,7 +514,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         const params = new URL(req.url).searchParams;
         const xivgearUrl = params.get("url");
         if (!xivgearUrl) return json({ error: "Missing ?url= parameter" }, 400);
-        const gear = getLatestPcapGear();
+        const gear = getSelectedGear();
         if (!gear) return json({ error: "No packet-captured gear available yet" }, 409);
         const setParam = params.get("set") ?? undefined;
         try {
@@ -628,9 +696,9 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         };
         let baseGear: BaseGearEntry[] | undefined;
 
-        if (xivgearUrl && getLatestPcapGear()) {
+        if (xivgearUrl && getSelectedGear()) {
           try {
-            const gear = getLatestPcapGear()!;
+            const gear = getSelectedGear()!;
             const inv  = getLatestInventory();
             const setIndex  = await resolveSetIndex(xivgearUrl, setParam);
             const bisSet    = await getBisSet(xivgearUrl, setIndex);
@@ -683,7 +751,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         const params = new URL(req.url).searchParams;
         const xivgearUrl = params.get("url");
         if (!xivgearUrl) return json({ error: "Missing ?url= parameter" }, 400);
-        const gear = getLatestPcapGear();
+        const gear = getSelectedGear();
         if (!gear) return json({ error: "No packet-captured gear available yet" }, 409);
         const setParam = params.get("set") ?? undefined;
         try {

@@ -26,6 +26,19 @@ export interface Job {
   job: string;
 }
 
+// FFXIV ClassJob sheet IDs for each job. Used to key the per-job gear cache.
+// Base classes (GLA, MRD, etc.) are excluded — only jobs are tracked.
+export const JOB_ABBREV_TO_CLASS_ID: Record<string, number> = {
+  PLD: 19, MNK: 20, WAR: 21, DRG: 22, BRD: 23,
+  WHM: 24, BLM: 25, SMN: 27, SCH: 28, NIN: 30,
+  MCH: 31, DRK: 32, AST: 33, SAM: 34, RDM: 35,
+  GNB: 37, DNC: 38, RPR: 39, SGE: 40, VPR: 41, PCT: 42,
+};
+
+export const CLASS_ID_TO_JOB_ABBREV: Record<number, string> = Object.fromEntries(
+  Object.entries(JOB_ABBREV_TO_CLASS_ID).map(([k, v]) => [v, k])
+);
+
 export const JOBS: Job[] = [
   { label: "Paladin",     abbrev: "PLD", role: "tanks",   job: "paladin" },
   { label: "Warrior",     abbrev: "WAR", role: "tanks",   job: "warrior" },

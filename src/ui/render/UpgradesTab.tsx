@@ -1,6 +1,7 @@
 import { signal } from "@preact/signals";
-import type { UpgradeItemsResponse, UpgradeItemEntry } from "../types.ts";
-import { API_BASE } from "../constants.ts";
+import type { UpgradeItemsResponse, UpgradeItemEntry, UpgradeBaseGearEntry } from "../types.ts";
+import { API_BASE, SLOT_LABELS } from "../constants.ts";
+import { bisLinkUrl } from "../state.ts";
 import { Corners } from "../components/Corners.tsx";
 
 type Status = "idle" | "loading" | "error";
@@ -9,7 +10,7 @@ const upgradeData      = signal<UpgradeItemsResponse | null>(null);
 const upgradeStatus    = signal<Status>("idle");
 const upgradeErrorMsg  = signal("");
 
-const CATEGORIES: { key: keyof UpgradeItemsResponse; label: string }[] = [
+const CATEGORIES: { key: keyof Omit<UpgradeItemsResponse, "baseGear">; label: string }[] = [
   { key: "currency",  label: "Currency"  },
   { key: "coffers",   label: "Coffers"   },
   { key: "materials", label: "Materials" },
@@ -19,7 +20,11 @@ const CATEGORIES: { key: keyof UpgradeItemsResponse; label: string }[] = [
 export async function loadUpgradeItems(): Promise<void> {
   upgradeStatus.value = "loading";
   try {
-    const res = await fetch(`${API_BASE}/upgrade-items`);
+    const bisUrl = bisLinkUrl.value;
+    const endpoint = bisUrl
+      ? `${API_BASE}/upgrade-items?url=${encodeURIComponent(bisUrl)}`
+      : `${API_BASE}/upgrade-items`;
+    const res = await fetch(endpoint);
     if (!res.ok) {
       const body = await res.json().catch(() => null) as { error?: string } | null;
       upgradeErrorMsg.value = body?.error ?? `Failed to load (${res.status})`;
@@ -55,6 +60,42 @@ function GridCell({ item }: { item: UpgradeItemEntry }) {
   );
 }
 
+function BaseGearCell({ entry }: { entry: UpgradeBaseGearEntry }) {
+  const label = SLOT_LABELS[entry.slot] ?? entry.slot;
+  const owned = entry.haveEquipped || entry.haveInBags > 0 || entry.haveInArmory > 0;
+
+  let statusLabel: string;
+  let statusClass: string;
+  if (entry.haveEquipped) {
+    statusLabel = "Equipped";
+    statusClass = "text-ffxiv-gold";
+  } else if (entry.haveInArmory > 0) {
+    statusLabel = "Armory";
+    statusClass = "text-green-400";
+  } else if (entry.haveInBags > 0) {
+    statusLabel = "In Bags";
+    statusClass = "text-green-400";
+  } else {
+    statusLabel = "Missing";
+    statusClass = "text-gray-500 opacity-60";
+  }
+
+  return (
+    <div
+      class={`relative flex flex-col items-center gap-1.5 bg-ffxiv-panel border ${owned ? "border-ffxiv-border hover:border-ffxiv-gold" : "border-ffxiv-border hover:border-gray-500"} rounded p-2 transition-colors cursor-default`}
+      data-tooltip={`${label}: ${entry.name}`}
+    >
+      <Corners />
+      {entry.icon
+        ? <img src={entry.icon} alt="" class={`w-10 h-10 rounded object-cover${owned ? "" : " opacity-60"}`} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+        : <div class={`w-10 h-10 rounded bg-ffxiv-border${owned ? "" : " opacity-60"}`} />
+      }
+      <span class="text-[10px] text-gray-400 truncate w-full text-center">{label}</span>
+      <span class={`text-[11px] font-mono ${statusClass}`}>{statusLabel}</span>
+    </div>
+  );
+}
+
 export function UpgradesTab() {
   const status = upgradeStatus.value;
   const data   = upgradeData.value;
@@ -70,12 +111,22 @@ export function UpgradesTab() {
   }
 
   const sections = CATEGORIES.filter(({ key }) => data[key].length > 0);
-  if (sections.length === 0) {
+  const hasBaseGear = data.baseGear && data.baseGear.length > 0;
+
+  if (sections.length === 0 && !hasBaseGear) {
     return <p class="text-xs text-gray-500 italic">No upgrade items found for the active raid tier.</p>;
   }
 
   return (
     <>
+      {hasBaseGear && (
+        <div class="mb-5">
+          <h3 class="font-cinzel text-xs font-semibold text-ffxiv-gold uppercase tracking-wide mb-2">Pre-upgrade Gear</h3>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
+            {data.baseGear!.map(entry => <BaseGearCell key={entry.slot} entry={entry} />)}
+          </div>
+        </div>
+      )}
       {sections.map(({ key, label }) => (
         <div class="mb-5" key={key}>
           <h3 class="font-cinzel text-xs font-semibold text-ffxiv-gold uppercase tracking-wide mb-2">{label}</h3>

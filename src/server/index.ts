@@ -548,15 +548,24 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         });
       }
 
-      // GET /upgrade-items
+      // GET /upgrade-items[?url=&set=]
       //   Returns all upgrade-related items for the active raid tier (coffers,
       //   books, upgrade materials, tomestones), cross-referenced against the
       //   current inventory.  Does NOT filter by whether an item is currently
       //   needed — shows everything regardless of equipped gear.
       //
-      //   Response: { currency, coffers, materials, books }
+      //   Optional ?url= (xivgear BIS URL): when provided alongside a captured
+      //   gear snapshot, also returns `baseGear` — the 780 base tome pieces for
+      //   each slot that still needs upgrading, with equipped/bags/armory counts.
+      //
+      //   Response: { currency, coffers, materials, books, baseGear? }
       //     Each array: Array<{ itemId: number; name: string; have: number }>
+      //     baseGear: Array<{ slot, itemId, name, icon, haveEquipped, haveInBags, haveInArmory }>
       if (pathname === "/upgrade-items" && req.method === "GET") {
+        const params     = new URL(req.url).searchParams;
+        const xivgearUrl = params.get("url") ?? null;
+        const setParam   = params.get("set") ?? undefined;
+
         const acquisitionMap = await loadGearAcquisitionMap(PROJECT_ROOT);
         const counts = buildCounts(getLatestInventory());
         const have = (id: number) => id === 0 ? 0 : (counts.get(id) ?? 0);
@@ -612,7 +621,50 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
           books.push({ itemId: book.itemId, name, icon, have: have(book.itemId) });
         }
 
-        return json({ currency, coffers, materials, books });
+        // Base gear (780 tome pieces) — only when BIS URL and gear snapshot available.
+        type BaseGearEntry = {
+          slot: string; itemId: number; name: string; icon: string | null;
+          haveEquipped: boolean; haveInBags: number; haveInArmory: number;
+        };
+        let baseGear: BaseGearEntry[] | undefined;
+
+        if (xivgearUrl && getLatestPcapGear()) {
+          try {
+            const gear = getLatestPcapGear()!;
+            const inv  = getLatestInventory();
+            const setIndex  = await resolveSetIndex(xivgearUrl, setParam);
+            const bisSet    = await getBisSet(xivgearUrl, setIndex);
+            const comparison = compareGear(gear, bisSet);
+            const gearNeeds  = computeNeeds(comparison, bisSet, inv);
+
+            const upgradeNeeds: typeof gearNeeds.itemNeeds = [];
+            await Promise.all(gearNeeds.itemNeeds.map(async need => {
+              const baseId = need.bisItemId - acquisitionMap.upgradeOffset;
+              if (baseId <= 0) return;
+              const data = await fetchItemData(baseId);
+              if (data.itemLevel === acquisitionMap.baseILevel) upgradeNeeds.push(need);
+            }));
+
+            baseGear = await Promise.all(upgradeNeeds.map(async need => {
+              const baseId = need.bisItemId - acquisitionMap.upgradeOffset;
+              const d = await fetchItemData(baseId);
+              const invItems = inv?.items ?? [];
+              return {
+                slot: need.slot,
+                itemId: baseId,
+                name: d.name,
+                icon: d.icon,
+                haveEquipped: Object.values(gear.items).some(e => e?.itemId === baseId),
+                haveInBags:   invItems.filter(i => i.itemId === baseId && i.containerId <= 3).reduce((s, i) => s + i.quantity, 0),
+                haveInArmory: invItems.filter(i => i.itemId === baseId && i.containerId >= 3200).reduce((s, i) => s + i.quantity, 0),
+              };
+            }));
+          } catch {
+            // silently omit baseGear if BIS fetch fails
+          }
+        }
+
+        return json({ currency, coffers, materials, books, ...(baseGear ? { baseGear } : {}) });
       }
 
       // GET /acquisition?url=&set=
@@ -655,7 +707,7 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
             }
           }));
 
-          return json(computeAcquisition(gearNeeds, acquisitionMap, getLatestInventory(), upgradeBisIds));
+          return json(computeAcquisition(gearNeeds, acquisitionMap, getLatestInventory(), upgradeBisIds, gear));
         } catch (e) {
           return json({ error: String(e) }, 502);
         }

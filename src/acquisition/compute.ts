@@ -1,4 +1,4 @@
-import type { GearNeeds, InventorySnapshot } from '../types.ts';
+import type { GearNeeds, GearSnapshot, InventorySnapshot, SlotName } from '../types.ts';
 import type {
   GearAcquisitionMap,
   SlotAcquisitionStatus,
@@ -32,17 +32,21 @@ function itemCount(counts: Map<number, number>, itemId: number, name: string, ne
 
 /**
  * For each slot in `needs.itemNeeds`, compute all acquisition paths and
- * cross-reference them against the current inventory.
+ * cross-reference them against the current inventory and equipped gear.
  *
  * `upgradeBisIds` — set of bisItemIds confirmed (via XIVAPI iLevel check) to be
  * upgraded tome pieces. Those slots show only the upgrade path; all others show
  * only the coffer/books raid path.
+ *
+ * `gear` — the current gear snapshot; used to detect 780 base pieces that are
+ * equipped but not yet in bags/armory (container 1000 is absent from inventory).
  */
 export function computeAcquisition(
   needs: GearNeeds,
   map: GearAcquisitionMap,
   inventory: InventorySnapshot | null,
   upgradeBisIds: Set<number> = new Set(),
+  gear: GearSnapshot | null = null,
 ): SlotAcquisitionStatus[] {
   const counts = buildCounts(inventory);
 
@@ -83,9 +87,12 @@ export function computeAcquisition(
     const hasUpgradeData = isUpgradePath;
     const upgrade: UpgradePathStatus | null = hasUpgradeData ? (() => {
       const baseItemId = need.bisItemId - map.upgradeOffset;
+      const haveBaseInInventory = qty(counts, baseItemId) >= 1;
+      const haveBaseEquipped    = gear?.items[need.slot as SlotName]?.itemId === baseItemId;
       const base: BaseItemStatus = {
         baseItem: itemCount(counts, baseItemId, `780 base (${need.slot})`, 1),
-        haveBase: qty(counts, baseItemId) >= 1,
+        haveBase: haveBaseInInventory || haveBaseEquipped,
+        haveBaseEquipped,
         tomes: itemCount(counts, map.tomeId, map.tomeName, slotAcq.tomeCost ?? 0),
         canBuyWithTomes: qty(counts, map.tomeId) >= (slotAcq.tomeCost ?? 0),
       };

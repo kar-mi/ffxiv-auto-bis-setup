@@ -212,11 +212,13 @@ function AcquisitionAdvice({ s, itemDataMap }: {
     const matName   = iname(material.material.itemId,   material.material.name);
     const bookName  = iname(material.bookCost.book.itemId, material.bookCost.book.name);
 
-    const baseDetail = base.haveBase
-      ? <>You have the 780 base piece. </>
-      : base.canBuyWithTomes
-        ? <>Buy the 780 base with <strong>{base.tomes.need} {tomeName}</strong> (have {base.tomes.have}). </>
-        : <>Need <strong>{base.tomes.need} {tomeName}</strong> for the 780 base (have {base.tomes.have}). </>;
+    const baseDetail = base.haveBaseEquipped
+      ? <>780 base piece is equipped &mdash; unequip before trading at the vendor. </>
+      : base.haveBase
+        ? <>You have the 780 base piece. </>
+        : base.canBuyWithTomes
+          ? <>Buy the 780 base with <strong>{base.tomes.need} {tomeName}</strong> (have {base.tomes.have}). </>
+          : <>Need <strong>{base.tomes.need} {tomeName}</strong> for the 780 base (have {base.tomes.have}). </>;
 
     const matDetail = material.available
       ? <><strong>{matName}</strong> is in your bags &mdash; ready to upgrade at the vendor.</>
@@ -226,7 +228,7 @@ function AcquisitionAdvice({ s, itemDataMap }: {
 
     sections.push(
       <AdviceBlock key="upgrade" label="Upgrade" ready={available}>
-        {baseDetail}{matDetail}
+        {baseDetail}<br />{matDetail}
       </AdviceBlock>,
     );
   }

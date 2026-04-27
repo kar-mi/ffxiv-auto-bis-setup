@@ -74,7 +74,10 @@ export interface UpgradeMaterialStatus {
 export interface BaseItemStatus {
   /** The 780 currency piece — checked in bags AND armory. */
   baseItem: ItemCount;
+  /** True if the 780 base piece is in bags or armory. */
   haveBase: boolean;
+  /** True if the 780 base piece is currently equipped (not in inventory). Unequip before trading. */
+  haveBaseEquipped: boolean;
   /** Tomestone cost to purchase the 780 base item. */
   tomes: ItemCount;
   canBuyWithTomes: boolean;

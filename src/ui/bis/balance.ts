@@ -1,22 +1,34 @@
-import type { BisLink } from "../../types.ts";
+import type { BisLink, RaidTier } from "../../types.ts";
+import { signal } from "@preact/signals";
 import { API_BASE, JOBS } from "../constants.ts";
-import { el, logger } from "../dom.ts";
-import { state } from "../state.ts";
+import { logger } from "../dom.ts";
+import { currentJobAbbrev, currentCatalog } from "../state.ts";
 import { addSetFromUrl } from "./catalog.ts";
 
-export async function loadBalanceLinksForModal(): Promise<void> {
-  const list = el("balance-links-list");
-  if (!state.currentJobAbbrev) {
-    list.innerHTML = `<p class="text-xs text-gray-500 italic">Load gear first to detect your job.</p>`;
+export interface BalanceLink extends BisLink {
+  saved: boolean;
+  adding: boolean;
+  addError: string | null;
+}
+
+export const balanceTier    = signal<RaidTier>("aac_hw");
+export const balanceLoading = signal(false);
+export const balanceLinks   = signal<BalanceLink[] | null>(null);
+export const balanceError   = signal<string | null>(null);
+
+export async function loadBalanceLinks(): Promise<void> {
+  const abbrev = currentJobAbbrev.value;
+  if (!abbrev) {
+    balanceLinks.value = null;
+    balanceError.value = "Load gear first to detect your job.";
     return;
   }
-  const job = JOBS.find(j => j.abbrev === state.currentJobAbbrev);
+  const job = JOBS.find(j => j.abbrev === abbrev);
   if (!job) return;
 
-  const btn = el("btn-load-balance") as HTMLButtonElement;
-  btn.disabled = true;
-  btn.textContent = "Loading...";
-  list.innerHTML = "";
+  balanceLoading.value = true;
+  balanceError.value   = null;
+  balanceLinks.value   = null;
 
   try {
     const res = await fetch(`${API_BASE}/balance/${job.role}/${job.job}`);
@@ -24,45 +36,38 @@ export async function loadBalanceLinksForModal(): Promise<void> {
     const links = await res.json() as BisLink[];
 
     if (!links.length) {
-      list.innerHTML = `<p class="text-xs text-gray-500 italic">No sets found for ${job.label}.</p>`;
+      balanceError.value = `No sets found for ${job.label}.`;
       return;
     }
 
-    const savedUrls = new Set((state.currentCatalog?.sets ?? []).map(e => e.url));
-    list.innerHTML = links.map(link => {
-      const saved = savedUrls.has(link.url);
-      return `
-        <div class="flex items-center gap-2 bg-ffxiv-dark border border-ffxiv-border rounded px-3 py-2">
-          <span class="text-xs text-gray-200 flex-1 truncate" title="${link.url}">${link.label}</span>
-          ${saved
-            ? `<span class="text-[10px] text-gray-500 border border-ffxiv-border rounded px-1.5 py-0.5 flex-shrink-0">Saved</span>`
-            : `<button class="text-[10px] text-gray-400 hover:text-ffxiv-gold px-2 py-0.5 border border-ffxiv-border rounded transition-colors flex-shrink-0"
-                       data-balance-url="${link.url}">Add</button>`}
-        </div>`;
-    }).join("");
-
-    list.querySelectorAll<HTMLButtonElement>("[data-balance-url]").forEach(addBtn => {
-      addBtn.addEventListener("click", async () => {
-        const url = addBtn.dataset["balanceUrl"]!;
-        const raidTier = (el("sel-balance-tier") as HTMLSelectElement).value;
-        addBtn.disabled = true;
-        addBtn.textContent = "Adding...";
-        try {
-          await addSetFromUrl(url, raidTier, false);
-          addBtn.textContent = "Saved ✓";
-          addBtn.className = "text-[10px] text-green-400 px-2 py-0.5 border border-green-800/50 rounded flex-shrink-0";
-        } catch (err) {
-          logger.error(err, "[app] balance add failed");
-          addBtn.textContent = "Error";
-          addBtn.className = "text-[10px] text-red-400 px-2 py-0.5 border border-red-800 rounded flex-shrink-0";
-          addBtn.disabled = false;
-        }
-      });
-    });
+    const savedUrls = new Set((currentCatalog.value?.sets ?? []).map(e => e.url));
+    balanceLinks.value = links.map(link => ({
+      ...link,
+      saved:    savedUrls.has(link.url),
+      adding:   false,
+      addError: null,
+    }));
   } catch (err) {
-    list.innerHTML = `<p class="text-xs text-red-400">Failed to load: ${(err as Error)?.message ?? String(err)}</p>`;
+    logger.error(err, "[balance] fetch failed");
+    balanceError.value = `Failed to load: ${(err as Error)?.message ?? String(err)}`;
   } finally {
-    btn.disabled = false;
-    btn.textContent = "Load from The Balance";
+    balanceLoading.value = false;
   }
+}
+
+export async function addBalanceLink(url: string): Promise<void> {
+  patchLink(url, { adding: true, addError: null });
+  try {
+    await addSetFromUrl(url, balanceTier.value, false);
+    patchLink(url, { saved: true, adding: false });
+  } catch (err) {
+    logger.error(err, "[balance] add failed");
+    patchLink(url, { adding: false, addError: (err as Error)?.message ?? String(err) });
+  }
+}
+
+function patchLink(url: string, patch: Partial<BalanceLink>): void {
+  balanceLinks.value = (balanceLinks.value ?? []).map(l =>
+    l.url === url ? { ...l, ...patch } : l
+  );
 }

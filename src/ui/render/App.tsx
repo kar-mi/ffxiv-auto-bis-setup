@@ -11,7 +11,10 @@ import {
 import { loadGear } from "../gear-load.ts";
 import { runComparison, clearComparison } from "../bis/comparison.ts";
 import { addSetFromUrl } from "../bis/catalog.ts";
-import { loadBalanceLinksForModal } from "../bis/balance.ts";
+import {
+  balanceTier, balanceLoading, balanceLinks, balanceError,
+  loadBalanceLinks, addBalanceLink,
+} from "../bis/balance.ts";
 import { loadUpgradeItems, UpgradesTab } from "./UpgradesTab.tsx";
 import { AcquisitionTab } from "./AcquisitionTab.tsx";
 import { GearTab } from "./GearTab.tsx";
@@ -265,20 +268,49 @@ function BisTabPanel() {
             Raid Tier (applied to all additions)
           </label>
           <select
-            id="sel-balance-tier"
+            value={balanceTier.value}
             class="bg-ffxiv-dark border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold"
+            onChange={(e) => { balanceTier.value = (e.currentTarget as HTMLSelectElement).value as RaidTier; }}
           >
             <TierOptions />
           </select>
         </div>
         <button
-          id="btn-load-balance"
-          class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors self-start"
-          onClick={() => void loadBalanceLinksForModal()}
+          class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors self-start disabled:opacity-50"
+          disabled={balanceLoading.value}
+          onClick={() => void loadBalanceLinks()}
         >
-          Load from The Balance
+          {balanceLoading.value ? "Loading..." : "Load from The Balance"}
         </button>
-        <div id="balance-links-list" class="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto"></div>
+        {balanceError.value && (
+          <p class="text-xs text-gray-500 italic">{balanceError.value}</p>
+        )}
+        <div class="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto">
+          {(balanceLinks.value ?? []).map(link => (
+            <div key={link.url} class="flex items-center gap-2 bg-ffxiv-dark border border-ffxiv-border rounded px-3 py-2">
+              <span class="text-xs text-gray-200 flex-1 truncate" title={link.url}>{link.label}</span>
+              {link.saved ? (
+                <span class="text-[10px] text-gray-500 border border-ffxiv-border rounded px-1.5 py-0.5 flex-shrink-0">Saved</span>
+              ) : link.adding ? (
+                <span class="text-[10px] text-gray-400 px-2 py-0.5 border border-ffxiv-border rounded flex-shrink-0">Adding...</span>
+              ) : link.addError ? (
+                <button
+                  class="text-[10px] text-red-400 px-2 py-0.5 border border-red-800 rounded flex-shrink-0"
+                  onClick={() => void addBalanceLink(link.url)}
+                >
+                  Error — retry
+                </button>
+              ) : (
+                <button
+                  class="text-[10px] text-gray-400 hover:text-ffxiv-gold px-2 py-0.5 border border-ffxiv-border rounded transition-colors flex-shrink-0"
+                  onClick={() => void addBalanceLink(link.url)}
+                >
+                  Add
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

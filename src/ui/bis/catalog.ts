@@ -66,5 +66,3 @@ export function refreshBisDropdown(): void {
   }
 }
 
-// Replaced by <SavedSetsTab /> component in BisTab.tsx — signals drive re-renders.
-export function renderSavedSetsTab(): void {}

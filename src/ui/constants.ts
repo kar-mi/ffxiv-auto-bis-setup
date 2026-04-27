@@ -49,5 +49,3 @@ export const JOBS: Job[] = [
   { label: "Red Mage",    abbrev: "RDM", role: "casters", job: "red-mage" },
   { label: "Pictomancer", abbrev: "PCT", role: "casters", job: "pictomancer" },
 ];
-
-export const CORNERS = `<span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>`;

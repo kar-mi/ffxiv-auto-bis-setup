@@ -29,7 +29,7 @@ export const snapshotMeta       = signal<string | null>(null);
 export const statusMsg          = signal<string | null>(null);
 export const statusIsError      = signal(false);
 
-// Compatibility shim — existing modules that use `state.X` / `state.X = y` need no changes.
+// Compatibility shim — non-component modules use `state.X` / `state.X = y` syntax.
 export const state = {
   get currentSnapshot()         { return currentSnapshot.value; },
   set currentSnapshot(v)        { currentSnapshot.value = v; },
@@ -49,10 +49,6 @@ export const state = {
   set currentJobAbbrev(v)       { currentJobAbbrev.value = v; },
   get currentCatalog()          { return currentCatalog.value; },
   set currentCatalog(v)         { currentCatalog.value = v; },
-  get bisJobFilter()            { return bisJobFilter.value; },
-  set bisJobFilter(v)           { bisJobFilter.value = v; },
-  get activeTab()               { return activeTab.value; },
-  set activeTab(v)              { activeTab.value = v; },
 };
 
 export function mergedItemDataMap(): Map<number, ItemData> {

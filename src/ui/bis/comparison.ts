@@ -9,9 +9,11 @@ import {
   compareVisible, clearVisible,
 } from "../state.ts";
 import { fetchItemData } from "../api.ts";
-import { renderGear, crystalJobName } from "../render/gear.ts";
-import { renderAcquisitionPanel } from "../render/AcquisitionTab.tsx";
 import { loadCatalog } from "./catalog.ts";
+
+function crystalJobName(name: string): string {
+  return name.replace(/^Soul of (?:the )?/i, "");
+}
 
 export async function runComparison(): Promise<void> {
   const url = bisLinkUrl.value;
@@ -64,8 +66,6 @@ export async function runComparison(): Promise<void> {
 
   clearStatus();
   clearVisible.value = true;
-  renderGear();
-  renderAcquisitionPanel();
 }
 
 export async function autoDetectJob(itemDataMap: Map<number, ItemData>): Promise<void> {
@@ -114,10 +114,6 @@ export async function autoDetectJob(itemDataMap: Map<number, ItemData>): Promise
   }
 }
 
-export function onBisLinkChange(): void {
-  compareVisible.value = !!bisLinkUrl.value;
-}
-
 export function clearComparison(): void {
   state.comparisonData   = null;
   state.currentBisSet    = null;
@@ -130,6 +126,4 @@ export function clearComparison(): void {
   bisLinkUrl.value       = "";
   compareVisible.value   = false;
   clearVisible.value     = false;
-  renderGear();
-  renderAcquisitionPanel();
 }

@@ -1,6 +1,6 @@
 import { acquisitionData } from "../state.ts";
 import { SLOT_LABELS } from "../constants.ts";
-import { openCompareModal } from "./modal.ts";
+import { openCompareModal } from "./CompareModal.tsx";
 import type { SlotAcquisitionStatus } from "../../acquisition/types.ts";
 
 function Pill({ text, ready }: { text: string; ready: boolean }) {
@@ -64,6 +64,3 @@ export function AcquisitionTab() {
     </>
   );
 }
-
-// Backward-compat no-op — signals drive re-renders automatically.
-export function renderAcquisitionPanel(): void {}

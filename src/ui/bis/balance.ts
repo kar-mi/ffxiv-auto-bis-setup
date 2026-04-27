@@ -3,7 +3,7 @@ import { API_BASE } from "../constants.ts";
 import { JOBS } from "../constants.ts";
 import { el, logger } from "../dom.ts";
 import { state } from "../state.ts";
-import { addSetFromUrl, renderSavedSetsTab } from "./catalog.ts";
+import { addSetFromUrl } from "./catalog.ts";
 
 export async function loadBalanceLinksForModal(): Promise<void> {
   const list = el("balance-links-list");
@@ -52,7 +52,6 @@ export async function loadBalanceLinksForModal(): Promise<void> {
           await addSetFromUrl(url, raidTier, false);
           addBtn.textContent = "Saved ✓";
           addBtn.className = "text-[10px] text-green-400 px-2 py-0.5 border border-green-800/50 rounded flex-shrink-0";
-          renderSavedSetsTab();
         } catch (err) {
           logger.error(err, "[app] balance add failed");
           addBtn.textContent = "Error";

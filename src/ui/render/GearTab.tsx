@@ -1,6 +1,6 @@
 import { currentSnapshot, comparisonData, mergedItemDataMap } from "../state.ts";
 import { SLOT_LABELS, LEFT_SLOTS, RIGHT_SLOTS } from "../constants.ts";
-import { openCompareModal } from "./modal.ts";
+import { openCompareModal } from "./CompareModal.tsx";
 import { Corners } from "../components/Corners.tsx";
 import type { EquipmentPiece, SlotComparison } from "../../types.ts";
 import type { ItemData } from "../../xivapi/item-data.ts";

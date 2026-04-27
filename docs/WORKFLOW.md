@@ -83,35 +83,54 @@ src/server/index.ts  (Bun.serve)                                            │
 ### UI Path
 
 ```
-src/ui/main.ts  (entry point — built to public/bundle.js via bun build:ui)
+src/ui/main.tsx  (entry point — built to public/bundle.js via bun build:ui)
+  │   initWindowControls(), initResize()
+  │   render(<App />, #app-root)
+  │   loadCatalog(), loadGear()
   │
-  ├── gear-load.ts          loadGear() — fetches /pcap/gear, resolves item data, drives render
-  ├── tabs.ts               switchTab(), switchManageSetsTab()
-  ├── state.ts              shared mutable state (snapshot, comparison, catalog, …)
-  ├── api.ts                fetchItemData() — proxies GET /item/:id with a process-lifetime cache
-  ├── constants.ts          SLOT_LABELS, JOBS, LEFT/RIGHT_SLOTS, API_BASE, CORNERS
-  ├── dom.ts                el(), setStatus(), clearStatus(), logger
-  ├── types.ts              UpgradeItemsResponse (frontend-only shapes)
+  ├── state.ts              @preact/signals — all reactive state
+  │                         signals: currentSnapshot, comparisonData, bisLinkEntries,
+  │                                  bisLinkUrl, compareVisible, clearVisible,
+  │                                  statusMsg, snapshotMeta, selectedSlot, …
+  │                         state{} compat shim for non-component modules
+  │                         mergedItemDataMap() — combines gear + BIS item caches
   │
-  ├── render/
-  │   ├── gear.ts           renderGear(), renderGearItem(), renderCrystal(), renderMateria*()
-  │   ├── modal.ts          openCompareModal(), closeModal(), renderMateriaAdvice(),
-  │   │                     renderAcquisitionAdvice(), renderModalItemColumn()
-  │   ├── acquisition.ts    renderAcquisitionPanel(), pill()
-  │   └── upgrades.ts       renderUpgradesTab() — fetches GET /upgrade-items
+  ├── gear-load.ts          loadGear() — fetches /pcap/gear, resolves item IDs,
+  │                         updates currentSnapshot / snapshotMeta signals,
+  │                         calls autoDetectJob → runComparison if a BIS set is selected
+  │
+  ├── api.ts                fetchItemData() — proxies GET /item/:id (process-lifetime cache)
+  ├── constants.ts          SLOT_LABELS, JOBS, LEFT/RIGHT_SLOTS, API_BASE
+  ├── dom.ts                el(), setStatus() → statusMsg signal, clearStatus(), logger
+  ├── types.ts              UpgradeItemsResponse, UpgradeItemEntry (frontend-only shapes)
+  │
+  ├── render/               Preact components (all .tsx)
+  │   ├── App.tsx           <App /> — root; <TabBar /> + 4 tab panels + modals
+  │   │                     module-level signals: manageSetsTab, manual-add form state
+  │   ├── GearTab.tsx       <GearTab /> — reads currentSnapshot, comparisonData signals
+  │   ├── AcquisitionTab.tsx <AcquisitionTab /> — reads acquisitionData signal
+  │   ├── UpgradesTab.tsx   <UpgradesTab /> — owns upgrade fetch; loadUpgradeItems()
+  │   ├── BisTab.tsx        <SavedSetsTab /> — reads currentCatalog, bisJobFilter signals
+  │   ├── CompareModal.tsx  <CompareModal /> — reads selectedSlot signal
+  │   │                     openCompareModal(slot), closeModal()
+  │   ├── SettingsModal.tsx <SettingsModal /> — settingsOpen signal
+  │   └── components/
+  │       └── Corners.tsx   <Corners /> — decorative corner spans
   │
   ├── bis/
-  │   ├── catalog.ts        loadCatalog(), renderSavedSetsTab(), addSetFromUrl(),
-  │   │                     patchSet(), refreshBisDropdown(), tierSelectHtml()
+  │   ├── catalog.ts        loadCatalog(), addSetFromUrl(), patchSet(),
+  │   │                     refreshBisDropdown() → updates bisLinkEntries/bisLinkUrl signals
   │   ├── balance.ts        loadBalanceLinksForModal() — fetches GET /balance/:role/:job
-  │   └── comparison.ts     runComparison(), autoDetectJob(), onBisLinkChange(), clearComparison()
+  │   └── comparison.ts     runComparison(), autoDetectJob() → updates BIS link signals,
+  │                         clearComparison()
   │
   └── window/
       ├── resize.ts         initResize() — pointer-event window resize handles
-      └── controls.ts       initWindowControls() — close/minimize/maximize/settings modal
+      └── controls.ts       initWindowControls() — close/minimize/maximize;
+                            btn-settings → settingsOpen signal
 
-public/index.html  (Tailwind CSS via CDN — see docs/TODO.md for migration plan)
-public/styles.css  (extracted from inline <style>)
+public/index.html  (titlebar + resize handles + <div id="app-root">; Tailwind CDN)
+public/styles.css  (corner decoration + modal animations)
 public/bundle.js   (built output — gitignored)
 ```
 
@@ -189,27 +208,27 @@ src/
 │                              Bun HTTP server; also the standalone entry point
 │
 ├── ui/                      — frontend TypeScript; built to public/bundle.js
-│   ├── main.ts              — entry point; wires all event listeners, calls loadCatalog + loadGear
-│   ├── constants.ts         — SLOT_LABELS, JOBS, LEFT/RIGHT_SLOTS, API_BASE, CORNERS
+│   ├── main.tsx             — entry point; mounts <App />, calls loadCatalog + loadGear
+│   ├── constants.ts         — SLOT_LABELS, JOBS, LEFT/RIGHT_SLOTS, API_BASE
 │   ├── types.ts             — frontend-only interfaces (UpgradeItemsResponse, UpgradeItemEntry)
-│   ├── state.ts             — shared mutable state object + mergedItemDataMap()
-│   ├── dom.ts               — el(), setStatus(), clearStatus(), logger
+│   ├── state.ts             — @preact/signals signals + state{} compat shim + mergedItemDataMap()
+│   ├── dom.ts               — el(), setStatus() / clearStatus() (write signals), logger
 │   ├── api.ts               — fetchItemData(id); proxies GET /item/:id with in-memory cache
-│   ├── gear-load.ts         — loadGear(); fetches snapshot, resolves item data, triggers render
-│   ├── tabs.ts              — switchTab(), switchManageSetsTab()
+│   ├── gear-load.ts         — loadGear(); fetches snapshot, resolves item data, updates signals
 │   ├── render/
-│   │   ├── gear.ts          — renderGear(), renderGearItem(), renderCrystal(),
-│   │   │                      renderMateria(), renderMateriaCompare(), crystalJobName()
-│   │   ├── modal.ts         — openCompareModal(), closeModal(), renderMateriaAdvice(),
-│   │   │                      renderAcquisitionAdvice(), renderModalItemColumn()
-│   │   ├── acquisition.ts   — renderAcquisitionPanel(), pill()
-│   │   └── upgrades.ts      — renderUpgradesTab(); fetches GET /upgrade-items
+│   │   ├── App.tsx          — <App />; TabBar + tab panels + modals; manual-add form signals
+│   │   ├── GearTab.tsx      — <GearTab />; gear card grid; reads snapshot/comparison signals
+│   │   ├── AcquisitionTab.tsx — <AcquisitionTab />; acquisition rows; reads acquisitionData signal
+│   │   ├── UpgradesTab.tsx  — <UpgradesTab />; upgrade item grid; loadUpgradeItems()
+│   │   ├── BisTab.tsx       — <SavedSetsTab />; catalog CRUD with inline event handlers
+│   │   ├── CompareModal.tsx — <CompareModal />; slot modal; openCompareModal() / closeModal()
+│   │   ├── SettingsModal.tsx — <SettingsModal />; settingsOpen signal
+│   │   └── components/
+│   │       └── Corners.tsx  — <Corners />; decorative corner spans
 │   ├── bis/
-│   │   ├── catalog.ts       — loadCatalog(), renderSavedSetsTab(), addSetFromUrl(),
-│   │   │                      patchSet(), refreshBisDropdown(), tierSelectHtml()
+│   │   ├── catalog.ts       — loadCatalog(), addSetFromUrl(), patchSet(), refreshBisDropdown()
 │   │   ├── balance.ts       — loadBalanceLinksForModal()
-│   │   └── comparison.ts    — runComparison(), autoDetectJob(), onBisLinkChange(),
-│   │                          clearComparison()
+│   │   └── comparison.ts    — runComparison(), autoDetectJob(), clearComparison()
 │   └── window/
 │       ├── resize.ts        — initResize(); pointer-event window resize handles
 │       └── controls.ts      — initWindowControls(); close/minimize/maximize/settings
@@ -335,4 +354,3 @@ interface LocalBisEntry {
 | Feature | Notes |
 |---------|-------|
 | Tailwind build step | Replace CDN Tailwind with Tailwind CLI / PostCSS; see `docs/TODO.md` |
-| Component rendering | Tab sections are static HTML; see `docs/TODO.md` for migration plan |

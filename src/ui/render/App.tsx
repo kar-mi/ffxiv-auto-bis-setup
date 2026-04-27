@@ -12,7 +12,7 @@ import { loadGear } from "../gear-load.ts";
 import { runComparison, clearComparison } from "../bis/comparison.ts";
 import { addSetFromUrl } from "../bis/catalog.ts";
 import { loadBalanceLinksForModal } from "../bis/balance.ts";
-import { renderUpgradesTab, UpgradesTab } from "./UpgradesTab.tsx";
+import { loadUpgradeItems, UpgradesTab } from "./UpgradesTab.tsx";
 import { AcquisitionTab } from "./AcquisitionTab.tsx";
 import { GearTab } from "./GearTab.tsx";
 import { SavedSetsTab } from "./BisTab.tsx";
@@ -68,7 +68,7 @@ function TierOptions() {
 const MAIN_TABS: { id: string; label: string; onActivate?: () => void }[] = [
   { id: "gear",        label: "Gear" },
   { id: "bis",         label: "BIS Sets" },
-  { id: "upgrades",    label: "Items",    onActivate: () => void renderUpgradesTab() },
+  { id: "upgrades",    label: "Items",    onActivate: () => void loadUpgradeItems() },
   { id: "acquisition", label: "Upgrades" },
 ];
 
@@ -292,7 +292,7 @@ function UpgradesTabPanel() {
         <h2 class="font-cinzel text-sm font-semibold text-ffxiv-gold uppercase tracking-wide">Items</h2>
         <button
           class="relative px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors"
-          onClick={() => void renderUpgradesTab()}
+          onClick={() => void loadUpgradeItems()}
         >
           <Corners />
           Refresh

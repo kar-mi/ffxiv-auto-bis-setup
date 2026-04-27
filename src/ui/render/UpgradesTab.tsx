@@ -34,8 +34,6 @@ export async function loadUpgradeItems(): Promise<void> {
   }
 }
 
-// Backward-compat alias — tabs.ts, comparison.ts, main.tsx keep working unchanged.
-export const renderUpgradesTab = loadUpgradeItems;
 
 function GridCell({ item }: { item: UpgradeItemEntry }) {
   const have = item.have > 0;

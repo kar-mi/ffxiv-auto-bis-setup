@@ -1,6 +1,5 @@
 import type { BisLink } from "../../types.ts";
-import { API_BASE } from "../constants.ts";
-import { JOBS } from "../constants.ts";
+import { API_BASE, JOBS } from "../constants.ts";
 import { el, logger } from "../dom.ts";
 import { state } from "../state.ts";
 import { addSetFromUrl } from "./catalog.ts";

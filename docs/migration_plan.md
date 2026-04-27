@@ -1,76 +1,60 @@
-# Preact Migration Plan
+# Post-HTML→TSX Migration: Cleanup & Optimization Plan
 
-Migrating the UI from static HTML + imperative DOM manipulation to Preact components with `@preact/signals` for reactive state.
-
-## Motivation
-
-- Tab shells are hardcoded in `public/index.html`; TypeScript drives them by fragile string IDs
-- `innerHTML` template literals have no type safety and embed unsanitised strings
-- Post-render `querySelectorAll` loops attach events after the fact
-- Global `state` object is mutated directly by every module with no reactivity
-
-## Tech choices
-
-- **Preact** — 3 KB runtime, identical API to React, first-class TypeScript/JSX support
-- **`@preact/signals`** — reactive primitives that work inside and outside components; fits the existing async fetch → update flow without restructuring around `useEffect`
-- **No additional state library** — signals replace the `state` object directly
+## Status legend
+- [ ] pending
+- [x] done
 
 ---
 
-## Phase 1 — Foundation
+## 1. Convert `ui/bis/balance.ts` to a signal-driven Preact component
 
-- `bun add preact @preact/signals`
-- `tsconfig.json`: add `"jsx": "react-jsx"` and `"jsxImportSource": "preact"`
-- `package.json`: update `build:ui` entry point to `src/ui/main.tsx`
-- Rename `src/ui/main.ts` → `src/ui/main.tsx`
-- Verify `bun run build:ui` produces a working bundle
+**Files:** `src/ui/bis/balance.ts`, `src/ui/render/App.tsx`
 
-## Phase 2 — State → signals
+The only module not migrated during the HTML→TSX transition. It writes `innerHTML`
+and attaches `addEventListener` against three hard-coded element IDs
+(`balance-links-list`, `btn-load-balance`, `sel-balance-tier`) that `App.tsx`
+creates as dumb placeholder elements. The other two sub-tabs in the same panel
+("Saved Sets", "Paste URL") are fully declarative Preact.
 
-Convert `state.ts` from a plain mutable object to `@preact/signals`.
-
-- Each property becomes `signal<T>(initialValue)`
-- `mergedItemDataMap()` becomes a `computed()`
-- Export names stay identical so existing modules compile without changes
-- Async fetch functions (`loadGear`, `runComparison`) update signals directly — no `useEffect` needed
-
-## Phase 3 — Tab components, leaf-first
-
-Replace each `innerHTML`-writing render function with a `.tsx` component rendered into the existing container div. Least-coupled first:
-
-| Order | Component | Replaces | Signals consumed |
-|-------|-----------|----------|-----------------|
-| 1 | `<UpgradesTab />` | `renderUpgradesTab()` | none (fetches own data) |
-| 2 | `<AcquisitionTab />` | `renderAcquisitionPanel()` | `acquisitionData` |
-| 3 | `<GearTab />` | `renderGear()` | `currentSnapshot`, `comparisonData` |
-| 4 | `<BisTab />` | `renderSavedSetsTab()`, `loadBalanceLinksForModal()` | `currentCatalog`, `currentJobAbbrev` |
-
-Each component owns its event handlers inline in JSX — no post-render `querySelectorAll` loops.
-
-## Phase 4 — Modals
-
-- `<CompareModal />` — controlled by `selectedSlot = signal<SlotName | null>(null)`; replaces `openCompareModal()` / `closeModal()`
-- `<SettingsModal />` — straightforward conversion, already trivial
-
-## Phase 5 — Tab bar + app root
-
-- `<TabBar />` driven by `activeTab` signal; replaces `switchTab()` and class-toggling in `tabs.ts`
-- `<App />` root component assembles all tabs and modals; rendered into `#app-shell` from `main.tsx`
-- Strip tab panel `<div>` blocks from `index.html` — they become empty mount points, then disappear once `<App />` renders the full content area
-
-## Phase 6 — Cleanup
-
-- Delete `tabs.ts` (absorbed into `<TabBar />`)
-- Slim `dom.ts` — `el()` / `setStatus()` no longer needed once components own their DOM
-- Update `docs/WORKFLOW.md` — UI Path diagram and module map
-- Update `CLAUDE.md` — stack section and module list
-- Remove "Component rendering" row from `docs/TODO.md`
+**Action:** Add signals (`balanceLinks`, `balanceLoading`, `balanceError`) inside
+`balance.ts`, replace the imperative function body with signal mutations, then
+replace the three ID-bearing elements in `App.tsx`'s `BisTabPanel` with a reactive
+component. Remove `id=` props from those three elements. Potentially remove the
+`el()` export from `dom.ts` if no other callers remain.
 
 ---
 
-## Key invariants
+## 2. Merge duplicate import in `balance.ts` [x]
 
-- Each phase produces a working build — no big-bang rewrite
-- XSS fix is a natural byproduct — JSX escapes interpolated values; template-literal `innerHTML` does not
-- `.tsx` extension only on files that contain JSX markup; pure logic/types stay `.ts`
-- `<Type>value` cast syntax is banned in `.tsx` — use `value as Type` (already the codebase standard)
+**File:** `src/ui/bis/balance.ts:2-3`
+
+`API_BASE` and `JOBS` are imported from `../constants.ts` in two separate lines.
+Merge into one `import { API_BASE, JOBS } from "../constants.ts"`.
+
+---
+
+## 3. Fix `buildBagCounts` / `buildCounts` inconsistency [x]
+
+**Files:** `src/bis/needs.ts:67`, `src/acquisition/compute.ts:14`
+
+Both functions build a `Map<itemId, totalQuantity>` from inventory, but `compute.ts`
+filters out `itemId === 0 || quantity === 0` sentinel values while `needs.ts` does
+not. If inventory contains sentinels, `needs.ts` over-counts.
+
+**Action:** Add the same guard (`if (item.itemId === 0 || item.quantity === 0) continue`)
+to `needs.ts`'s `buildBagCounts`, or extract a single shared helper into a utility
+module that both files import.
+
+---
+
+## 4. Remove `state` compat shim from `state.ts` [ ]
+
+**File:** `src/ui/state.ts`
+
+`state.ts` exports both named signals (`currentSnapshot`, etc.) and a `state`
+object wrapping them all with getters/setters so non-component modules can write
+`state.X = v` instead of `currentSnapshot.value = v`. After #1 is done, all callers
+(`gear-load.ts`, `bis/comparison.ts`, `bis/catalog.ts`) can be migrated to named
+signals directly and the shim (~20 lines) removed.
+
+**Dependency:** Complete #1 first, then migrate remaining callers.

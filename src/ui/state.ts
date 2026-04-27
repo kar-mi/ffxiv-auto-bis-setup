@@ -17,6 +17,18 @@ export const bisJobFilter       = signal("");
 export const activeTab          = signal("gear");
 export const selectedSlot       = signal<SlotName | null>(null);
 
+// BIS link dropdown — driven by comparison/catalog, consumed by GearTabPanel
+export const bisLinkEntries     = signal<{ url: string; label: string }[]>([]);
+export const bisLinkVisible     = signal(false);
+export const bisLinkUrl         = signal("");
+export const compareVisible     = signal(false);
+export const clearVisible       = signal(false);
+
+// Gear tab status elements — driven by dom.ts / gear-load.ts
+export const snapshotMeta       = signal<string | null>(null);
+export const statusMsg          = signal<string | null>(null);
+export const statusIsError      = signal(false);
+
 // Compatibility shim — existing modules that use `state.X` / `state.X = y` need no changes.
 export const state = {
   get currentSnapshot()         { return currentSnapshot.value; },

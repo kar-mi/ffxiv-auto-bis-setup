@@ -1,13 +1,13 @@
 import type { GearSnapshot } from "../types.ts";
 import { API_BASE } from "./constants.ts";
-import { el, setStatus, clearStatus, logger } from "./dom.ts";
-import { state } from "./state.ts";
+import { setStatus, clearStatus, logger } from "./dom.ts";
+import { state, snapshotMeta, bisLinkUrl } from "./state.ts";
 import { fetchItemData } from "./api.ts";
 import { autoDetectJob, runComparison } from "./bis/comparison.ts";
 
 export async function loadGear(): Promise<void> {
   logger.debug("[app] loadGear called");
-  el("snapshot-meta").classList.add("hidden");
+  snapshotMeta.value = null;
   setStatus("Fetching gear from packet capture...");
 
   let snapshot: GearSnapshot;
@@ -43,15 +43,11 @@ export async function loadGear(): Promise<void> {
   state.currentItemDataMap = new Map(resolved);
 
   clearStatus();
-
-  const meta = el("snapshot-meta");
   if (snapshot.capturedAt) {
-    meta.textContent = `Captured ${new Date(snapshot.capturedAt).toLocaleString()}`;
-    meta.classList.remove("hidden");
+    snapshotMeta.value = `Captured ${new Date(snapshot.capturedAt).toLocaleString()}`;
   }
 
   await autoDetectJob(state.currentItemDataMap);
 
-  const sel = el("sel-bis-link") as HTMLSelectElement;
-  if (sel.value) await runComparison();
+  if (bisLinkUrl.value) await runComparison();
 }

@@ -2,16 +2,19 @@ import type { GearsetComparison, BisGearSet } from "../../types.ts";
 import type { SlotAcquisitionStatus } from "../../acquisition/types.ts";
 import type { ItemData } from "../../xivapi/item-data.ts";
 import { API_BASE, JOBS } from "../constants.ts";
-import { el, setStatus, clearStatus, logger } from "../dom.ts";
-import { state } from "../state.ts";
+import { setStatus, clearStatus, logger } from "../dom.ts";
+import {
+  state,
+  bisLinkEntries, bisLinkVisible, bisLinkUrl,
+  compareVisible, clearVisible,
+} from "../state.ts";
 import { fetchItemData } from "../api.ts";
 import { renderGear, crystalJobName } from "../render/gear.ts";
 import { renderAcquisitionPanel } from "../render/AcquisitionTab.tsx";
-import { renderUpgradesTab } from "../render/UpgradesTab.tsx";
 import { loadCatalog } from "./catalog.ts";
 
 export async function runComparison(): Promise<void> {
-  const url = (el("sel-bis-link") as HTMLSelectElement).value;
+  const url = bisLinkUrl.value;
   if (!url) return;
 
   setStatus("Comparing gear...");
@@ -60,10 +63,9 @@ export async function runComparison(): Promise<void> {
   state.bisItemDataMap = new Map(resolvedBis);
 
   clearStatus();
-  el("btn-clear-compare").classList.remove("hidden");
+  clearVisible.value = true;
   renderGear();
   renderAcquisitionPanel();
-  if (state.activeTab === "upgrades") void renderUpgradesTab();
 }
 
 export async function autoDetectJob(itemDataMap: Map<number, ItemData>): Promise<void> {
@@ -83,43 +85,37 @@ export async function autoDetectJob(itemDataMap: Map<number, ItemData>): Promise
   if (jobKey === state.currentJobKey) return;
   state.currentJobKey = jobKey;
 
-  el("bis-link-wrap").classList.add("hidden");
-  el("btn-compare").classList.add("hidden");
-  const sel = el("sel-bis-link") as HTMLSelectElement;
-  sel.innerHTML = `<option value="">— Select —</option>`;
-
   const savedEntries = (state.currentCatalog?.sets ?? []).filter(e => e.set.job === job.abbrev);
   const preferredId  = state.currentCatalog?.preferences?.[job.abbrev] ?? null;
 
-  for (const entry of savedEntries) {
-    const isDefault = entry.id === preferredId;
-    const opt = document.createElement("option");
-    opt.value = entry.url;
-    opt.textContent = `${isDefault ? "★ " : ""}${entry.set.name}`;
-    sel.appendChild(opt);
-  }
+  bisLinkEntries.value = savedEntries.map(e => ({
+    url:   e.url,
+    label: `${e.id === preferredId ? "★ " : ""}${e.set.name}`,
+  }));
+  bisLinkVisible.value  = savedEntries.length > 0;
+  bisLinkUrl.value      = "";
+  compareVisible.value  = false;
 
-  if (savedEntries.length > 0) el("bis-link-wrap").classList.remove("hidden");
+  if (savedEntries.length === 0) return;
 
   if (preferredId) {
     const entry = savedEntries.find(e => e.id === preferredId);
     if (entry) {
-      sel.value = entry.url;
-      el("btn-compare").classList.remove("hidden");
+      bisLinkUrl.value     = entry.url;
+      compareVisible.value = true;
       await runComparison();
       return;
     }
   }
 
   if (savedEntries.length === 1) {
-    sel.value = savedEntries[0]!.url;
-    onBisLinkChange();
+    bisLinkUrl.value     = savedEntries[0]!.url;
+    compareVisible.value = true;
   }
 }
 
 export function onBisLinkChange(): void {
-  const sel = el("sel-bis-link") as HTMLSelectElement;
-  el("btn-compare").classList[sel.value ? "remove" : "add"]("hidden");
+  compareVisible.value = !!bisLinkUrl.value;
 }
 
 export function clearComparison(): void {
@@ -129,11 +125,11 @@ export function clearComparison(): void {
   state.acquisitionData  = null;
   state.currentJobKey    = null;
   state.currentJobAbbrev = null;
-  el("bis-link-wrap").classList.add("hidden");
-  el("btn-compare").classList.add("hidden");
-  el("btn-clear-compare").classList.add("hidden");
-  (el("sel-bis-link") as HTMLSelectElement).innerHTML = `<option value="">— Select —</option>`;
+  bisLinkEntries.value   = [];
+  bisLinkVisible.value   = false;
+  bisLinkUrl.value       = "";
+  compareVisible.value   = false;
+  clearVisible.value     = false;
   renderGear();
   renderAcquisitionPanel();
 }
-

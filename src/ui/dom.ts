@@ -1,3 +1,5 @@
+import { statusMsg, statusIsError } from "./state.ts";
+
 export const logger = {
   debug: (...a: unknown[]): void => { console.debug(...a); },
   info:  (...a: unknown[]): void => { console.info(...a); },
@@ -10,12 +12,11 @@ export function el(id: string): HTMLElement {
 }
 
 export function setStatus(msg: string, isError = false): void {
-  const s = el("status");
-  s.textContent = msg;
-  s.className = `text-sm mb-6 ${isError ? "text-red-400" : "text-gray-400"}`;
-  s.classList.remove("hidden");
+  statusMsg.value   = msg;
+  statusIsError.value = isError;
 }
 
 export function clearStatus(): void {
-  el("status").classList.add("hidden");
+  statusMsg.value     = null;
+  statusIsError.value = false;
 }

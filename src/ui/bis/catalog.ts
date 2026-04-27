@@ -1,7 +1,7 @@
 import type { BisCatalog, LocalBisEntry } from "../../types.ts";
 import { API_BASE } from "../constants.ts";
-import { el, logger } from "../dom.ts";
-import { state } from "../state.ts";
+import { logger } from "../dom.ts";
+import { state, bisLinkEntries, bisLinkVisible, bisLinkUrl, compareVisible } from "../state.ts";
 
 export async function loadCatalog(): Promise<void> {
   try {
@@ -50,22 +50,20 @@ export function refreshBisDropdown(): void {
   if (!state.currentJobAbbrev) return;
   const savedEntries = (state.currentCatalog?.sets ?? []).filter(e => e.set.job === state.currentJobAbbrev);
   const preferredId  = state.currentCatalog?.preferences?.[state.currentJobAbbrev] ?? null;
-  const sel = el("sel-bis-link") as HTMLSelectElement;
-  const currentVal = sel.value;
+  const currentUrl   = bisLinkUrl.value;
 
-  sel.innerHTML = `<option value="">— Select —</option>`;
-  for (const entry of savedEntries) {
-    const isDefault = entry.id === preferredId;
-    const opt = document.createElement("option");
-    opt.value = entry.url;
-    opt.textContent = `${isDefault ? "★ " : ""}${entry.set.name}`;
-    sel.appendChild(opt);
-  }
+  bisLinkEntries.value = savedEntries.map(e => ({
+    url:   e.url,
+    label: `${e.id === preferredId ? "★ " : ""}${e.set.name}`,
+  }));
+  bisLinkVisible.value = savedEntries.length > 0;
 
-  if (currentVal && Array.from(sel.options).some(o => o.value === currentVal)) {
-    sel.value = currentVal;
+  if (currentUrl && savedEntries.some(e => e.url === currentUrl)) {
+    bisLinkUrl.value = currentUrl;
+  } else {
+    bisLinkUrl.value     = "";
+    compareVisible.value = false;
   }
-  el("bis-link-wrap").classList.toggle("hidden", savedEntries.length === 0);
 }
 
 // Replaced by <SavedSetsTab /> component in BisTab.tsx — signals drive re-renders.

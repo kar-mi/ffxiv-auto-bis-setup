@@ -11,7 +11,7 @@ import { Corners } from "../components/Corners.tsx";
 // ---- Materia circles -------------------------------------------------------
 
 function MateriaCircles({ piece, itemDataMap }: { piece: EquipmentPiece; itemDataMap: Map<number, ItemData> }) {
-  const totalSlots = piece.materiaSlots ?? (piece.canOvermeld ? 5 : 2);
+  const totalSlots = piece.canOvermeld ? 5 : Math.min(piece.materiaSlots ?? 2, 2);
   return (
     <div class="flex gap-1 items-center mt-1">
       {Array.from({ length: totalSlots }, (_, i) => {
@@ -35,11 +35,8 @@ function MateriaCompareCircles({ piece, bisItem, itemDataMap }: {
   bisItem: EquipmentPiece | null;
   itemDataMap: Map<number, ItemData>;
 }) {
-  const totalSlots = Math.max(
-    piece?.materiaSlots ?? (piece?.canOvermeld ? 5 : 2),
-    bisItem?.materias?.length ?? 0,
-    2,
-  );
+  const equippedSlots = piece?.canOvermeld ? 5 : Math.min(piece?.materiaSlots ?? 2, 2);
+  const totalSlots = Math.max(equippedSlots, bisItem?.materias?.length ?? 0, 2);
   return (
     <div class="flex gap-1 items-center mt-1">
       {Array.from({ length: totalSlots }, (_, i) => {

@@ -6,7 +6,7 @@ import type { EquipmentPiece, SlotComparison } from "../../types.ts";
 import type { ItemData } from "../../xivapi/item-data.ts";
 
 function MateriaCircles({ piece, itemDataMap }: { piece: EquipmentPiece; itemDataMap: Map<number, ItemData> }) {
-  const totalSlots = piece.materiaSlots ?? (piece.canOvermeld ? 5 : 2);
+  const totalSlots = piece.canOvermeld ? 5 : Math.min(piece.materiaSlots ?? 2, 2);
   return (
     <div class="flex gap-1 items-center mt-1">
       {Array.from({ length: totalSlots }, (_, i) => {

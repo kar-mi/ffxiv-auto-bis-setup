@@ -2,6 +2,7 @@ import { signal } from "@preact/signals";
 import type { UpgradeItemsResponse, UpgradeItemEntry, UpgradeBaseGearEntry } from "../types.ts";
 import { API_BASE, SLOT_LABELS } from "../constants.ts";
 import { bisLinkUrl } from "../state.ts";
+import { fetchJson } from "../api.ts";
 import { Corners } from "../components/Corners.tsx";
 import { ItemIcon } from "../components/ItemIcon.tsx";
 
@@ -20,24 +21,18 @@ const CATEGORIES: { key: keyof Omit<UpgradeItemsResponse, "baseGear">; label: st
 
 export async function loadUpgradeItems(): Promise<void> {
   upgradeStatus.value = "loading";
-  try {
-    const bisUrl = bisLinkUrl.value;
-    const endpoint = bisUrl
-      ? `${API_BASE}/upgrade-items?url=${encodeURIComponent(bisUrl)}`
-      : `${API_BASE}/upgrade-items`;
-    const res = await fetch(endpoint);
-    if (!res.ok) {
-      const body = await res.json().catch(() => null) as { error?: string } | null;
-      upgradeErrorMsg.value = body?.error ?? `Failed to load (${res.status})`;
-      upgradeStatus.value = "error";
-      return;
-    }
-    upgradeData.value   = await res.json() as UpgradeItemsResponse;
-    upgradeStatus.value = "idle";
-  } catch {
-    upgradeErrorMsg.value = "Could not reach the server.";
+  const bisUrl = bisLinkUrl.value;
+  const endpoint = bisUrl
+    ? `${API_BASE}/upgrade-items?url=${encodeURIComponent(bisUrl)}`
+    : `${API_BASE}/upgrade-items`;
+  const result = await fetchJson<UpgradeItemsResponse>(endpoint);
+  if (!result.ok) {
+    upgradeErrorMsg.value = result.error;
     upgradeStatus.value   = "error";
+    return;
   }
+  upgradeData.value   = result.data;
+  upgradeStatus.value = "idle";
 }
 
 

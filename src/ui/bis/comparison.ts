@@ -1,13 +1,14 @@
-import type { GearsetComparison, BisGearSet } from "../../types.ts";
+import type { GearsetComparison, GearNeeds, BisGearSet } from "../../types.ts";
 import type { SlotAcquisitionStatus } from "../../acquisition/types.ts";
 import type { ItemData } from "../../xivapi/item-data.ts";
 import { API_BASE, JOBS } from "../constants.ts";
 import { setStatus, clearStatus, logger } from "../dom.ts";
 import {
-  state,
+  comparisonData, needsData, currentBisSet, bisItemDataMap, acquisitionData,
+  currentSnapshot, currentJobKey, currentJobAbbrev, currentCatalog,
   bisLinkEntries, bisLinkUrl,
 } from "../state.ts";
-import { fetchItemData } from "../api.ts";
+import { fetchItemData, fetchJson } from "../api.ts";
 import { loadCatalog } from "./catalog.ts";
 
 function crystalJobName(name: string): string {
@@ -19,49 +20,37 @@ export async function runComparison(): Promise<void> {
   if (!url) return;
 
   setStatus("Comparing gear...");
-  let compRes: Response, bisRes: Response, acqRes: Response;
-  try {
-    [compRes, bisRes, acqRes] = await Promise.all([
-      fetch(`${API_BASE}/compare?url=${encodeURIComponent(url)}`),
-      fetch(`${API_BASE}/bis?url=${encodeURIComponent(url)}`),
-      fetch(`${API_BASE}/acquisition?url=${encodeURIComponent(url)}`),
-    ]);
-  } catch (err) {
-    logger.error(err, "[app] comparison fetch failed");
-    setStatus("Comparison request failed", true);
-    return;
-  }
+  const encodedUrl = encodeURIComponent(url);
 
-  if (!compRes.ok) {
-    const data = await compRes.json().catch(() => null) as { error?: string } | null;
-    setStatus(data?.error ?? `Comparison failed (${compRes.status})`, true);
-    return;
-  }
-  if (!bisRes.ok) {
-    const data = await bisRes.json().catch(() => null) as { error?: string } | null;
-    setStatus(data?.error ?? `BIS fetch failed (${bisRes.status})`, true);
-    return;
-  }
+  const [compResult, bisResult, acqResult, needsResult] = await Promise.all([
+    fetchJson<GearsetComparison>(`${API_BASE}/compare?url=${encodedUrl}`),
+    fetchJson<BisGearSet>(`${API_BASE}/bis?url=${encodedUrl}`),
+    fetchJson<SlotAcquisitionStatus[]>(`${API_BASE}/acquisition?url=${encodedUrl}`),
+    fetchJson<GearNeeds>(`${API_BASE}/needs?url=${encodedUrl}`),
+  ]);
 
-  state.comparisonData = await compRes.json() as GearsetComparison;
-  state.currentBisSet  = await bisRes.json() as BisGearSet;
+  if (!compResult.ok) { setStatus(compResult.error, true); return; }
+  if (!bisResult.ok)  { setStatus(bisResult.error,  true); return; }
 
-  if (acqRes.ok) {
-    state.acquisitionData = await acqRes.json() as SlotAcquisitionStatus[];
-    logger.debug({ count: state.acquisitionData.length }, "[app] acquisition data received");
+  comparisonData.value = compResult.data;
+  currentBisSet.value  = bisResult.data;
+  needsData.value      = needsResult.ok ? needsResult.data : null;
+
+  if (acqResult.ok) {
+    acquisitionData.value = acqResult.data;
+    logger.debug({ count: acqResult.data.length }, "[app] acquisition data received");
   } else {
-    const errBody = await acqRes.json().catch(() => null);
-    logger.warn({ status: acqRes.status, body: errBody }, "[app] acquisition fetch failed");
-    state.acquisitionData = null;
+    logger.warn({ error: acqResult.error }, "[app] acquisition fetch failed");
+    acquisitionData.value = null;
   }
 
   const bisIds = new Set<number>();
-  for (const item of Object.values(state.currentBisSet.items)) {
+  for (const item of Object.values(bisResult.data.items)) {
     if (item?.itemId) bisIds.add(item.itemId);
     for (const mid of item?.materias ?? []) { if (mid) bisIds.add(mid); }
   }
   const resolvedBis = await Promise.all([...bisIds].map(id => fetchItemData(id).then(d => [id, d] as [number, ItemData])));
-  state.bisItemDataMap = new Map(resolvedBis);
+  bisItemDataMap.value = new Map(resolvedBis);
 
   clearStatus();
 }
@@ -70,15 +59,15 @@ export async function selectJob(abbrev: string): Promise<void> {
   const job = JOBS.find(j => j.abbrev === abbrev);
   if (!job) return;
 
-  state.currentJobAbbrev = abbrev;
-  if (!state.currentCatalog) await loadCatalog();
+  currentJobAbbrev.value = abbrev;
+  if (!currentCatalog.value) await loadCatalog();
 
   const jobKey = `${job.role}/${job.job}`;
-  if (jobKey === state.currentJobKey) return;
-  state.currentJobKey = jobKey;
+  if (jobKey === currentJobKey.value) return;
+  currentJobKey.value = jobKey;
 
-  const savedEntries = (state.currentCatalog?.sets ?? []).filter(e => e.set.job === abbrev);
-  const preferredId  = state.currentCatalog?.preferences?.[abbrev] ?? null;
+  const savedEntries = (currentCatalog.value?.sets ?? []).filter(e => e.set.job === abbrev);
+  const preferredId  = currentCatalog.value?.preferences?.[abbrev] ?? null;
 
   bisLinkEntries.value = savedEntries.map(e => ({
     url:   e.url,
@@ -103,7 +92,7 @@ export async function selectJob(abbrev: string): Promise<void> {
 }
 
 export async function autoDetectJob(itemDataMap: Map<number, ItemData>): Promise<void> {
-  const crystal = state.currentSnapshot?.items?.crystal;
+  const crystal = currentSnapshot.value?.items?.crystal;
   if (!crystal) return;
   const data = itemDataMap.get(crystal.itemId);
   if (!data?.name) return;
@@ -116,13 +105,14 @@ export async function autoDetectJob(itemDataMap: Map<number, ItemData>): Promise
 }
 
 export function clearComparison(): void {
-  state.comparisonData   = null;
-  state.currentBisSet    = null;
-  state.bisItemDataMap   = new Map();
-  state.acquisitionData  = null;
-  bisLinkEntries.value   = [];
-  bisLinkUrl.value       = "";
+  comparisonData.value  = null;
+  needsData.value       = null;
+  currentBisSet.value   = null;
+  bisItemDataMap.value  = new Map();
+  acquisitionData.value = null;
+  bisLinkEntries.value  = [];
+  bisLinkUrl.value      = "";
   // Job selection intentionally kept so the picker stays populated after clearing.
   // currentJobKey is also cleared so the next selectJob call re-runs catalog filtering.
-  state.currentJobKey    = null;
+  currentJobKey.value   = null;
 }

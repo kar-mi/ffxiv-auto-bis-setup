@@ -24,41 +24,39 @@ export interface Job {
   abbrev: string;
   role: string;
   job: string;
+  classId: number;
 }
 
-// FFXIV ClassJob sheet IDs for each job. Used to key the per-job gear cache.
+// FFXIV ClassJob sheet IDs are encoded directly in the JOBS table below.
 // Base classes (GLA, MRD, etc.) are excluded — only jobs are tracked.
-export const JOB_ABBREV_TO_CLASS_ID: Record<string, number> = {
-  PLD: 19, MNK: 20, WAR: 21, DRG: 22, BRD: 23,
-  WHM: 24, BLM: 25, SMN: 27, SCH: 28, NIN: 30,
-  MCH: 31, DRK: 32, AST: 33, SAM: 34, RDM: 35,
-  GNB: 37, DNC: 38, RPR: 39, SGE: 40, VPR: 41, PCT: 42,
-};
+export const JOBS: Job[] = [
+  { label: "Paladin",     abbrev: "PLD", role: "tanks",   job: "paladin",      classId: 19 },
+  { label: "Warrior",     abbrev: "WAR", role: "tanks",   job: "warrior",      classId: 21 },
+  { label: "Dark Knight", abbrev: "DRK", role: "tanks",   job: "dark-knight",  classId: 32 },
+  { label: "Gunbreaker",  abbrev: "GNB", role: "tanks",   job: "gunbreaker",   classId: 37 },
+  { label: "White Mage",  abbrev: "WHM", role: "healers", job: "white-mage",   classId: 24 },
+  { label: "Scholar",     abbrev: "SCH", role: "healers", job: "scholar",      classId: 28 },
+  { label: "Astrologian", abbrev: "AST", role: "healers", job: "astrologian",  classId: 33 },
+  { label: "Sage",        abbrev: "SGE", role: "healers", job: "sage",         classId: 40 },
+  { label: "Monk",        abbrev: "MNK", role: "melee",   job: "monk",         classId: 20 },
+  { label: "Dragoon",     abbrev: "DRG", role: "melee",   job: "dragoon",      classId: 22 },
+  { label: "Ninja",       abbrev: "NIN", role: "melee",   job: "ninja",        classId: 30 },
+  { label: "Samurai",     abbrev: "SAM", role: "melee",   job: "samurai",      classId: 34 },
+  { label: "Reaper",      abbrev: "RPR", role: "melee",   job: "reaper",       classId: 39 },
+  { label: "Viper",       abbrev: "VPR", role: "melee",   job: "viper",        classId: 41 },
+  { label: "Bard",        abbrev: "BRD", role: "ranged",  job: "bard",         classId: 23 },
+  { label: "Machinist",   abbrev: "MCH", role: "ranged",  job: "machinist",    classId: 31 },
+  { label: "Dancer",      abbrev: "DNC", role: "ranged",  job: "dancer",       classId: 38 },
+  { label: "Black Mage",  abbrev: "BLM", role: "casters", job: "black-mage",   classId: 25 },
+  { label: "Summoner",    abbrev: "SMN", role: "casters", job: "summoner",     classId: 27 },
+  { label: "Red Mage",    abbrev: "RDM", role: "casters", job: "red-mage",     classId: 35 },
+  { label: "Pictomancer", abbrev: "PCT", role: "casters", job: "pictomancer",  classId: 42 },
+];
 
-export const CLASS_ID_TO_JOB_ABBREV: Record<number, string> = Object.fromEntries(
-  Object.entries(JOB_ABBREV_TO_CLASS_ID).map(([k, v]) => [v, k])
+export const JOB_ABBREV_TO_CLASS_ID: Record<string, number> = Object.fromEntries(
+  JOBS.map(j => [j.abbrev, j.classId]),
 );
 
-export const JOBS: Job[] = [
-  { label: "Paladin",     abbrev: "PLD", role: "tanks",   job: "paladin" },
-  { label: "Warrior",     abbrev: "WAR", role: "tanks",   job: "warrior" },
-  { label: "Dark Knight", abbrev: "DRK", role: "tanks",   job: "dark-knight" },
-  { label: "Gunbreaker",  abbrev: "GNB", role: "tanks",   job: "gunbreaker" },
-  { label: "White Mage",  abbrev: "WHM", role: "healers", job: "white-mage" },
-  { label: "Scholar",     abbrev: "SCH", role: "healers", job: "scholar" },
-  { label: "Astrologian", abbrev: "AST", role: "healers", job: "astrologian" },
-  { label: "Sage",        abbrev: "SGE", role: "healers", job: "sage" },
-  { label: "Monk",        abbrev: "MNK", role: "melee",   job: "monk" },
-  { label: "Dragoon",     abbrev: "DRG", role: "melee",   job: "dragoon" },
-  { label: "Ninja",       abbrev: "NIN", role: "melee",   job: "ninja" },
-  { label: "Samurai",     abbrev: "SAM", role: "melee",   job: "samurai" },
-  { label: "Reaper",      abbrev: "RPR", role: "melee",   job: "reaper" },
-  { label: "Viper",       abbrev: "VPR", role: "melee",   job: "viper" },
-  { label: "Bard",        abbrev: "BRD", role: "ranged",  job: "bard" },
-  { label: "Machinist",   abbrev: "MCH", role: "ranged",  job: "machinist" },
-  { label: "Dancer",      abbrev: "DNC", role: "ranged",  job: "dancer" },
-  { label: "Black Mage",  abbrev: "BLM", role: "casters", job: "black-mage" },
-  { label: "Summoner",    abbrev: "SMN", role: "casters", job: "summoner" },
-  { label: "Red Mage",    abbrev: "RDM", role: "casters", job: "red-mage" },
-  { label: "Pictomancer", abbrev: "PCT", role: "casters", job: "pictomancer" },
-];
+export const CLASS_ID_TO_JOB_ABBREV: Record<number, string> = Object.fromEntries(
+  JOBS.map(j => [j.classId, j.abbrev]),
+);

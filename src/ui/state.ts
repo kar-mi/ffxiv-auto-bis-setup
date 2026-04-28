@@ -1,5 +1,5 @@
 import { signal, computed } from "@preact/signals";
-import type { GearSnapshot, GearsetComparison, BisGearSet, BisCatalog, SlotName } from "../types.ts";
+import type { GearSnapshot, GearsetComparison, GearNeeds, BisGearSet, BisCatalog, SlotName } from "../types.ts";
 import type { SlotAcquisitionStatus } from "../acquisition/types.ts";
 import type { ItemData } from "../xivapi/item-data.ts";
 
@@ -7,6 +7,7 @@ import type { ItemData } from "../xivapi/item-data.ts";
 export const currentSnapshot    = signal<GearSnapshot | null>(null);
 export const currentItemDataMap = signal(new Map<number, ItemData>());
 export const comparisonData     = signal<GearsetComparison | null>(null);
+export const needsData          = signal<GearNeeds | null>(null);
 export const currentBisSet      = signal<BisGearSet | null>(null);
 export const bisItemDataMap     = signal(new Map<number, ItemData>());
 export const acquisitionData    = signal<SlotAcquisitionStatus[] | null>(null);
@@ -41,27 +42,6 @@ export const snapshotMeta       = signal<string | null>(null);
 export const statusMsg          = signal<string | null>(null);
 export const statusIsError      = signal(false);
 
-// Compatibility shim — non-component modules use `state.X` / `state.X = y` syntax.
-export const state = {
-  get currentSnapshot()         { return currentSnapshot.value; },
-  set currentSnapshot(v)        { currentSnapshot.value = v; },
-  get currentItemDataMap()      { return currentItemDataMap.value; },
-  set currentItemDataMap(v)     { currentItemDataMap.value = v; },
-  get comparisonData()          { return comparisonData.value; },
-  set comparisonData(v)         { comparisonData.value = v; },
-  get currentBisSet()           { return currentBisSet.value; },
-  set currentBisSet(v)          { currentBisSet.value = v; },
-  get bisItemDataMap()          { return bisItemDataMap.value; },
-  set bisItemDataMap(v)         { bisItemDataMap.value = v; },
-  get acquisitionData()         { return acquisitionData.value; },
-  set acquisitionData(v)        { acquisitionData.value = v; },
-  get currentJobKey()           { return currentJobKey.value; },
-  set currentJobKey(v)          { currentJobKey.value = v; },
-  get currentJobAbbrev()        { return currentJobAbbrev.value; },
-  set currentJobAbbrev(v)       { currentJobAbbrev.value = v; },
-  get currentCatalog()          { return currentCatalog.value; },
-  set currentCatalog(v)         { currentCatalog.value = v; },
-};
 
 export const mergedItemDataMap = computed(
   () => new Map([...currentItemDataMap.value, ...bisItemDataMap.value]),

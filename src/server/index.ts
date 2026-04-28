@@ -165,6 +165,22 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
       // Packet capture
       // -----------------------------------------------------------------------
 
+      function validateSnapshotBody(body: Record<string, unknown>, kind: "Gear" | "Inventory"): Response | null {
+        if (typeof body["capturedAt"] !== "string") {
+          return json({ error: `Invalid ${kind}Snapshot: missing capturedAt` }, 400);
+        }
+        if (kind === "Inventory") {
+          if (!Array.isArray(body["items"])) {
+            return json({ error: "Invalid InventorySnapshot: items must be an array" }, 400);
+          }
+        } else {
+          if (typeof body["items"] !== "object" || body["items"] === null) {
+            return json({ error: "Invalid GearSnapshot: missing items" }, 400);
+          }
+        }
+        return null;
+      }
+
       // GET  /pcap/gear
       //   Returns the most recent GearSnapshot received from the packet capture
       //   process. 404 if no snapshot has been captured yet.
@@ -183,9 +199,8 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         }
         if (req.method === "POST") {
           const body = (await req.json()) as Record<string, unknown>;
-          if (typeof body["capturedAt"] !== "string" || typeof body["items"] !== "object" || body["items"] === null) {
-            return json({ error: "Invalid GearSnapshot: missing capturedAt or items" }, 400);
-          }
+          const err = validateSnapshotBody(body, "Gear");
+          if (err) return err;
           setLatestPcapGear(body as unknown as GearSnapshot);
           return json({ ok: true });
         }
@@ -210,9 +225,8 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
         }
         if (req.method === "POST") {
           const body = (await req.json()) as Record<string, unknown>;
-          if (typeof body["capturedAt"] !== "string" || !Array.isArray(body["items"])) {
-            return json({ error: "Invalid InventorySnapshot: missing capturedAt or items" }, 400);
-          }
+          const err = validateSnapshotBody(body, "Inventory");
+          if (err) return err;
           setLatestInventory(body as unknown as InventorySnapshot);
           return json({ ok: true });
         }
@@ -249,9 +263,8 @@ export function startServer(port = 3000, publicDir = path.join(import.meta.dir, 
       //   Body: GearSnapshot
       if (pathname === "/pcap/gear-selected" && req.method === "POST") {
         const body = (await req.json()) as Record<string, unknown>;
-        if (typeof body["capturedAt"] !== "string" || typeof body["items"] !== "object" || body["items"] === null) {
-          return json({ error: "Invalid GearSnapshot: missing capturedAt or items" }, 400);
-        }
+        const err = validateSnapshotBody(body, "Gear");
+        if (err) return err;
         selectedGear = body as unknown as GearSnapshot;
         return json({ ok: true });
       }

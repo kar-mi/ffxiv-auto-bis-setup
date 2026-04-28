@@ -3,7 +3,7 @@ import type { SlotAcquisitionStatus, UpgradePathStatus } from "../../acquisition
 import type { ItemData } from "../../xivapi/item-data.ts";
 import { SLOT_LABELS } from "../constants.ts";
 import {
-  selectedSlot, comparisonData, currentBisSet,
+  selectedSlot, comparisonData, needsData, currentBisSet,
   currentSnapshot, acquisitionData, mergedItemDataMap,
 } from "../state.ts";
 import { Corners } from "../components/Corners.tsx";
@@ -93,32 +93,11 @@ function AdviceBlock({ label, ready, children }: {
   );
 }
 
-function materiaSetDiff(equipped: number[], bis: number[]): { toAdd: number[]; toRemove: number[] } {
-  const count = (ids: number[]): Map<number, number> => {
-    const m = new Map<number, number>();
-    for (const id of ids) if (id !== 0) m.set(id, (m.get(id) ?? 0) + 1);
-    return m;
-  };
-  const eq = count(equipped);
-  const bm = count(bis);
-  const toAdd: number[] = [];
-  const toRemove: number[] = [];
-  for (const [id, need] of bm) {
-    const have = eq.get(id) ?? 0;
-    for (let i = have; i < need; i++) toAdd.push(id);
-  }
-  for (const [id, have] of eq) {
-    const need = bm.get(id) ?? 0;
-    for (let i = need; i < have; i++) toRemove.push(id);
-  }
-  return { toAdd, toRemove };
-}
-
 function MateriaAdvice({ slotComp, itemDataMap }: { slotComp: SlotComparison; itemDataMap: Map<number, ItemData> }) {
-  const equipped  = slotComp.equippedMaterias ?? [];
-  const bis       = slotComp.bisMaterias ?? [];
-  const { toAdd, toRemove } = materiaSetDiff(equipped, bis);
-  const bisCount  = bis.filter(id => id !== 0).length;
+  const change   = needsData.value?.materiaChanges.find(c => c.slot === slotComp.slot);
+  const toAdd    = change?.toAdd ?? [];
+  const toRemove = change?.toRemove ?? [];
+  const bisCount = (slotComp.bisMaterias ?? []).filter(id => id !== 0).length;
 
   return (
     <>

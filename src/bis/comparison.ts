@@ -1,17 +1,11 @@
 import type { GearSnapshot, BisGearSet, GearsetComparison, SlotComparison, SlotName } from '../types.ts';
+import { multisetEquals } from './multiset.ts';
 
 const COMPARED_SLOTS: SlotName[] = [
   'mainHand', 'offHand',
   'head', 'chest', 'gloves', 'legs', 'feet',
   'earRings', 'necklace', 'bracelet', 'ring1', 'ring2',
 ];
-
-function materiasMatch(equipped: number[], bis: number[]): boolean {
-  const eq = [...equipped].filter(m => m > 0).sort((a, b) => a - b);
-  const bm = [...bis].filter(m => m > 0).sort((a, b) => a - b);
-  if (eq.length !== bm.length) return false;
-  return eq.every((v, i) => v === bm[i]);
-}
 
 export function compareGear(snapshot: GearSnapshot, bis: BisGearSet): GearsetComparison {
   const slots: SlotComparison[] = [];
@@ -45,7 +39,7 @@ export function compareGear(snapshot: GearSnapshot, bis: BisGearSet): GearsetCom
       wrongItemCount++;
       continue;
     }
-    if (!materiasMatch(equipped.materias, bisItem.materias)) {
+    if (!multisetEquals(equipped.materias, bisItem.materias)) {
       slots.push({
         slot,
         status: 'wrong-materia',

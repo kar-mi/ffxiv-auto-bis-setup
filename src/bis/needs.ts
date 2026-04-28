@@ -7,6 +7,7 @@ import type {
   MateriaChange,
 } from '../types.ts';
 import { buildItemCounts } from '../inventory/counts.ts';
+import { multisetDiff } from './multiset.ts';
 
 /**
  * Compute what a player still needs to acquire or re-meld to complete a BIS set.
@@ -40,11 +41,10 @@ export function computeNeeds(
       const bisItem = bis.items[slotComp.slot];
       if (!bisItem) continue;
 
-      const equipped = [...(slotComp.equippedMaterias ?? [])].filter(m => m > 0);
-      const bisMs = [...(slotComp.bisMaterias ?? [])].filter(m => m > 0);
+      const equipped = slotComp.equippedMaterias ?? [];
+      const bisMs = slotComp.bisMaterias ?? [];
 
-      const toAdd = subtractList(bisMs, equipped);
-      const toRemove = subtractList(equipped, bisMs);
+      const { onlyA: toRemove, onlyB: toAdd } = multisetDiff(equipped, bisMs);
 
       const quantityInBags: Record<number, number> = {};
       for (const mId of toAdd) {
@@ -62,22 +62,4 @@ export function computeNeeds(
   }
 
   return { itemNeeds, materiaChanges };
-}
-
-/**
- * Multiset subtraction: returns elements in `a` that are not covered by `b`.
- * e.g. subtractList([1,1,2], [1,2]) → [1]
- */
-function subtractList(a: number[], b: number[]): number[] {
-  const remaining = [...b];
-  const result: number[] = [];
-  for (const v of a) {
-    const idx = remaining.indexOf(v);
-    if (idx !== -1) {
-      remaining.splice(idx, 1);
-    } else {
-      result.push(v);
-    }
-  }
-  return result;
 }

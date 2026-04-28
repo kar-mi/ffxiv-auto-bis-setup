@@ -1,12 +1,12 @@
 import type { BisCatalog, LocalBisEntry } from "../../types.ts";
 import { API_BASE } from "../constants.ts";
 import { logger } from "../dom.ts";
-import { state, bisLinkEntries, bisLinkUrl } from "../state.ts";
+import { currentCatalog, currentJobAbbrev, bisLinkEntries, bisLinkUrl } from "../state.ts";
 
 export async function loadCatalog(): Promise<void> {
   try {
     const res = await fetch(`${API_BASE}/bis/catalog`);
-    if (res.ok) state.currentCatalog = await res.json() as BisCatalog;
+    if (res.ok) currentCatalog.value = await res.json() as BisCatalog;
   } catch {
     logger.warn("[app] could not load BIS catalog");
   }
@@ -34,8 +34,8 @@ export async function addSetFromUrl(url: string, raidTier: string, setDefault: b
     throw new Error(err?.error ?? `HTTP ${res.status}`);
   }
   const entry = await res.json() as LocalBisEntry;
-  if (setDefault && state.currentJobAbbrev) {
-    await fetch(`${API_BASE}/bis/catalog/preferences/${encodeURIComponent(state.currentJobAbbrev)}`, {
+  if (setDefault && currentJobAbbrev.value) {
+    await fetch(`${API_BASE}/bis/catalog/preferences/${encodeURIComponent(currentJobAbbrev.value)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: entry.id }),
@@ -47,9 +47,9 @@ export async function addSetFromUrl(url: string, raidTier: string, setDefault: b
 }
 
 export function refreshBisDropdown(): void {
-  if (!state.currentJobAbbrev) return;
-  const savedEntries = (state.currentCatalog?.sets ?? []).filter(e => e.set.job === state.currentJobAbbrev);
-  const preferredId  = state.currentCatalog?.preferences?.[state.currentJobAbbrev] ?? null;
+  if (!currentJobAbbrev.value) return;
+  const savedEntries = (currentCatalog.value?.sets ?? []).filter(e => e.set.job === currentJobAbbrev.value);
+  const preferredId  = currentCatalog.value?.preferences?.[currentJobAbbrev.value] ?? null;
   const currentUrl   = bisLinkUrl.value;
 
   bisLinkEntries.value = savedEntries.map(e => ({

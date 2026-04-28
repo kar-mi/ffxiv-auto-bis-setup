@@ -1,4 +1,5 @@
 import type { BisGearSet, BisItem, SlotName } from '../types.ts';
+import { fetchItemData } from '../xivapi/item-data.ts';
 
 const XIVGEAR_API = 'https://api.xivgear.app/fulldata';
 
@@ -78,23 +79,25 @@ interface XivgearFullData {
   sets: XivgearSet[];
 }
 
-function normalizeSet(raw: XivgearSet, job: string, source: string): BisGearSet {
+async function normalizeSet(raw: XivgearSet, job: string, source: string): Promise<BisGearSet> {
+  const entries = Object.entries(raw.items)
+    .map(([xivgearSlot, item]) => ({ slot: SLOT_MAP[xivgearSlot], item }))
+    .filter((e): e is { slot: SlotName; item: XivgearItem } => e.slot !== undefined);
+
+  const itemLevels = await Promise.all(
+    entries.map(({ item }) => fetchItemData(item.id).then(d => d.itemLevel).catch(() => undefined)),
+  );
+
   const items: Partial<Record<SlotName, BisItem>> = {};
-  for (const [xivgearSlot, item] of Object.entries(raw.items)) {
-    const slot = SLOT_MAP[xivgearSlot];
-    if (!slot) continue;
+  for (let i = 0; i < entries.length; i++) {
+    const { slot, item } = entries[i]!;
     items[slot] = {
       itemId: item.id,
       materias: (item.materia ?? []).map(m => m.id).filter(id => id > 0),
+      itemLevel: itemLevels[i],
     };
   }
-  return {
-    name: raw.name,
-    job,
-    items,
-    foodId: raw.food,
-    source,
-  };
+  return { name: raw.name, job, items, foodId: raw.food, source };
 }
 
 /**
@@ -110,7 +113,7 @@ export async function getBisSet(xivgearUrl: string, setIndex: number): Promise<B
   if (!set) {
     throw new Error(`Set index ${setIndex} not found (${data.sets.length} sets available)`);
   }
-  const bisSet = normalizeSet(set, data.job, xivgearUrl);
+  const bisSet = await normalizeSet(set, data.job, xivgearUrl);
   bisSetCache.set(cacheKey, bisSet);
   return bisSet;
 }

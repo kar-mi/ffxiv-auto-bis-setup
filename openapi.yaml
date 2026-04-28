@@ -464,6 +464,47 @@ paths:
         "502":
           $ref: "#/components/responses/UpstreamError"
 
+  /bis/full:
+    get:
+      tags: [compare]
+      summary: Bundled BIS set + comparison + needs + acquisition
+      description: >
+        Single request that returns the BIS set, gear comparison, needs
+        computation, and acquisition paths in one response. The UI uses this
+        instead of calling `/bis`, `/compare`, `/needs`, and `/acquisition`
+        separately. Returns 409 if no gear snapshot has been captured yet.
+      parameters:
+        - $ref: "#/components/parameters/XivgearUrl"
+        - $ref: "#/components/parameters/SetParam"
+      responses:
+        "200":
+          description: Bundled comparison data
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [bisSet, comparison, needs, acquisition]
+                properties:
+                  bisSet:
+                    $ref: "#/components/schemas/BisGearSet"
+                  comparison:
+                    $ref: "#/components/schemas/GearsetComparison"
+                  needs:
+                    $ref: "#/components/schemas/GearNeeds"
+                  acquisition:
+                    type: array
+                    items: { $ref: "#/components/schemas/SlotAcquisitionStatus" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: No gear snapshot available yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          $ref: "#/components/responses/UpstreamError"
+
   /upgrade-items:
     get:
       tags: [compare]

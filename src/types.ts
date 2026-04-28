@@ -60,6 +60,8 @@ export interface BisItem {
   itemId: number;
   /** Materia item IDs for this slot (0 = empty). */
   materias: number[];
+  /** Item level resolved from XIVAPI at fetch time. Absent on old catalog entries. */
+  itemLevel?: number;
 }
 
 /** A normalized BIS gear set fetched from xivgear.app */

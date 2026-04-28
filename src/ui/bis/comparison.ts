@@ -1,6 +1,13 @@
 import type { GearsetComparison, GearNeeds, BisGearSet } from "../../types.ts";
 import type { SlotAcquisitionStatus } from "../../acquisition/types.ts";
 import type { ItemData } from "../../xivapi/item-data.ts";
+
+interface BisFullResponse {
+  bisSet: BisGearSet;
+  comparison: GearsetComparison;
+  needs: GearNeeds;
+  acquisition: SlotAcquisitionStatus[];
+}
 import { API_BASE, JOBS } from "../constants.ts";
 import { setStatus, clearStatus, logger } from "../dom.ts";
 import {
@@ -20,32 +27,18 @@ export async function runComparison(): Promise<void> {
   if (!url) return;
 
   setStatus("Comparing gear...");
-  const encodedUrl = encodeURIComponent(url);
+  const result = await fetchJson<BisFullResponse>(`${API_BASE}/bis/full?url=${encodeURIComponent(url)}`);
+  if (!result.ok) { setStatus(result.error, true); return; }
 
-  const [compResult, bisResult, acqResult, needsResult] = await Promise.all([
-    fetchJson<GearsetComparison>(`${API_BASE}/compare?url=${encodedUrl}`),
-    fetchJson<BisGearSet>(`${API_BASE}/bis?url=${encodedUrl}`),
-    fetchJson<SlotAcquisitionStatus[]>(`${API_BASE}/acquisition?url=${encodedUrl}`),
-    fetchJson<GearNeeds>(`${API_BASE}/needs?url=${encodedUrl}`),
-  ]);
-
-  if (!compResult.ok) { setStatus(compResult.error, true); return; }
-  if (!bisResult.ok)  { setStatus(bisResult.error,  true); return; }
-
-  comparisonData.value = compResult.data;
-  currentBisSet.value  = bisResult.data;
-  needsData.value      = needsResult.ok ? needsResult.data : null;
-
-  if (acqResult.ok) {
-    acquisitionData.value = acqResult.data;
-    logger.debug({ count: acqResult.data.length }, "[app] acquisition data received");
-  } else {
-    logger.warn({ error: acqResult.error }, "[app] acquisition fetch failed");
-    acquisitionData.value = null;
-  }
+  const { bisSet, comparison, needs, acquisition } = result.data;
+  comparisonData.value  = comparison;
+  currentBisSet.value   = bisSet;
+  needsData.value       = needs;
+  acquisitionData.value = acquisition;
+  logger.debug({ count: acquisition.length }, "[app] acquisition data received");
 
   const bisIds = new Set<number>();
-  for (const item of Object.values(bisResult.data.items)) {
+  for (const item of Object.values(bisSet.items)) {
     if (item?.itemId) bisIds.add(item.itemId);
     for (const mid of item?.materias ?? []) { if (mid) bisIds.add(mid); }
   }

@@ -9,5 +9,6 @@ so the stylesheet is generated at build time and the inline config block can mov
 
 
 ## Bugs
-Materia slots show 5 for raid gear
-not showing materia alongside upgrades
+Materia slots show 5 for bis side, 2 equiped and 3 empty. bis shouldn't show empty materia
+not showing materia alongside upgrades, only shows materia needed or upgrade needed
+resize causes issue, unable to click on bottom element after resizing

@@ -38,6 +38,8 @@ export interface GearAcquisitionMap {
   upgradeOffset: number;
   /** iLevel of the base tome piece (e.g. 780). Used to confirm a BIS item is an upgrade-path piece. */
   baseILevel: number;
+  /** iLevel of the upgraded tome piece (e.g. 790). Used with BisItem.itemLevel for fast upgrade detection. */
+  upgradeILevel?: number;
   books: BookDef[];
   upgradeMaterials: UpgradeMaterialDef[];
   /** Keyed by SlotName string. Missing slots are unknown/not tracked. */

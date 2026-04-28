@@ -5,6 +5,7 @@
   "tomeId": 49,
   "upgradeOffset": 77,
   "baseILevel": 780,
+  "upgradeILevel": 790,
   "tomeName": "Allagan Tomestone of Aesthetics",
   "books": [
     { "itemId": 49760, "name": "AAC Illustrated: HW Edition 1" },

@@ -7,28 +7,8 @@ import {
   currentSnapshot, acquisitionData, mergedItemDataMap,
 } from "../state.ts";
 import { Corners } from "../components/Corners.tsx";
-
-// ---- Materia circles -------------------------------------------------------
-
-function MateriaCircles({ piece, itemDataMap }: { piece: EquipmentPiece; itemDataMap: Map<number, ItemData> }) {
-  const totalSlots = piece.canOvermeld ? 5 : Math.min(piece.materiaSlots ?? 2, 2);
-  return (
-    <div class="flex gap-1 items-center mt-1">
-      {Array.from({ length: totalSlots }, (_, i) => {
-        const id = piece.materias[i] ?? 0;
-        const filled = id !== 0;
-        const isOvermeld = i >= 2;
-        const title = filled ? (itemDataMap.get(id)?.name ?? `Materia #${id}`) : undefined;
-        if (!filled) {
-          const border = isOvermeld ? "border-red-800" : "border-blue-800";
-          return <span key={i} data-tooltip={title} class={`w-2.5 h-2.5 rounded-full border ${border} flex-shrink-0 inline-block`} />;
-        }
-        const bg = isOvermeld ? "bg-red-500" : "bg-blue-400";
-        return <span key={i} data-tooltip={title} class={`w-2.5 h-2.5 rounded-full ${bg} flex-shrink-0 inline-block`} />;
-      })}
-    </div>
-  );
-}
+import { MateriaCircles } from "../components/MateriaCircles.tsx";
+import { ItemIcon } from "../components/ItemIcon.tsx";
 
 function MateriaCompareCircles({ piece, bisItem, itemDataMap }: {
   piece: EquipmentPiece | null;
@@ -79,10 +59,7 @@ function ModalItemColumn({ heading, piece, bisItem, itemDataMap, status }: {
       <p class="text-[10px] text-gray-500 uppercase tracking-wide mb-2">{heading}</p>
       <div class="relative flex items-start gap-2 bg-ffxiv-dark border border-ffxiv-border rounded p-2">
         <Corners />
-        {data?.icon
-          ? <img src={data.icon} alt="" class="w-10 h-10 rounded object-cover flex-shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-          : <div class="w-10 h-10 rounded bg-ffxiv-border flex-shrink-0" />
-        }
+        <ItemIcon src={data?.icon} className="flex-shrink-0" />
         <div class="flex-1 min-w-0">
           <p class={`text-xs font-medium ${nameColor} truncate`}>{name}</p>
           {piece
@@ -252,7 +229,7 @@ export function CompareModal() {
   const slotKey  = slot as SlotName;
   const equipped = currentSnapshot.value?.items[slotKey] ?? null;
   const bisRaw   = bisSet.items[slotKey] ?? null;
-  const merged   = mergedItemDataMap();
+  const merged   = mergedItemDataMap.value;
 
   const bisPiece: EquipmentPiece | null = bisRaw
     ? { itemId: bisRaw.itemId, materias: bisRaw.materias, hq: false, canOvermeld: false, materiaSlots: 0 }

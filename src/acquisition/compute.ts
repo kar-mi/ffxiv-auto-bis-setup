@@ -1,4 +1,6 @@
 import type { GearNeeds, GearSnapshot, InventorySnapshot, SlotName } from '../types.ts';
+import { buildItemCounts } from '../inventory/counts.ts';
+export { buildItemCounts as buildCounts } from '../inventory/counts.ts';
 import type {
   GearAcquisitionMap,
   SlotAcquisitionStatus,
@@ -9,17 +11,6 @@ import type {
   UpgradePathStatus,
   ItemCount,
 } from './types.ts';
-
-/** Build itemId → total quantity from all tracked inventory (bags + armory). */
-export function buildCounts(inventory: InventorySnapshot | null): Map<number, number> {
-  const counts = new Map<number, number>();
-  if (!inventory) return counts;
-  for (const item of inventory.items) {
-    if (item.itemId === 0 || item.quantity === 0) continue;
-    counts.set(item.itemId, (counts.get(item.itemId) ?? 0) + item.quantity);
-  }
-  return counts;
-}
 
 function qty(counts: Map<number, number>, itemId: number): number {
   if (itemId === 0) return 0; // placeholder — not yet mapped
@@ -48,7 +39,7 @@ export function computeAcquisition(
   upgradeBisIds: Set<number> = new Set(),
   gear: GearSnapshot | null = null,
 ): SlotAcquisitionStatus[] {
-  const counts = buildCounts(inventory);
+  const counts = buildItemCounts(inventory);
 
   return needs.itemNeeds.map(need => {
     const slotAcq = map.slots[need.slot];

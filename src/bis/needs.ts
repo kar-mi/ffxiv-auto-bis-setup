@@ -6,6 +6,7 @@ import type {
   ItemNeed,
   MateriaChange,
 } from '../types.ts';
+import { buildItemCounts } from '../inventory/counts.ts';
 
 /**
  * Compute what a player still needs to acquire or re-meld to complete a BIS set.
@@ -18,7 +19,7 @@ export function computeNeeds(
   bis: BisGearSet,
   inventory: InventorySnapshot | null,
 ): GearNeeds {
-  const bagCounts = buildBagCounts(inventory);
+  const bagCounts = buildItemCounts(inventory);
 
   const itemNeeds: ItemNeed[] = [];
   const materiaChanges: MateriaChange[] = [];
@@ -61,17 +62,6 @@ export function computeNeeds(
   }
 
   return { itemNeeds, materiaChanges };
-}
-
-/** Build a map of itemId → total quantity across all tracked inventory containers. */
-function buildBagCounts(inventory: InventorySnapshot | null): Map<number, number> {
-  const counts = new Map<number, number>();
-  if (!inventory) return counts;
-  for (const item of inventory.items) {
-    if (item.itemId === 0 || item.quantity === 0) continue;
-    counts.set(item.itemId, (counts.get(item.itemId) ?? 0) + item.quantity);
-  }
-  return counts;
 }
 
 /**

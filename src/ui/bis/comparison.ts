@@ -5,8 +5,7 @@ import { API_BASE, JOBS } from "../constants.ts";
 import { setStatus, clearStatus, logger } from "../dom.ts";
 import {
   state,
-  bisLinkEntries, bisLinkVisible, bisLinkUrl,
-  compareVisible, clearVisible,
+  bisLinkEntries, bisLinkUrl,
 } from "../state.ts";
 import { fetchItemData } from "../api.ts";
 import { loadCatalog } from "./catalog.ts";
@@ -65,7 +64,6 @@ export async function runComparison(): Promise<void> {
   state.bisItemDataMap = new Map(resolvedBis);
 
   clearStatus();
-  clearVisible.value = true;
 }
 
 export async function selectJob(abbrev: string): Promise<void> {
@@ -86,25 +84,21 @@ export async function selectJob(abbrev: string): Promise<void> {
     url:   e.url,
     label: `${e.id === preferredId ? "★ " : ""}${e.set.name}`,
   }));
-  bisLinkVisible.value  = savedEntries.length > 0;
-  bisLinkUrl.value      = "";
-  compareVisible.value  = false;
+  bisLinkUrl.value = "";
 
   if (savedEntries.length === 0) return;
 
   if (preferredId) {
     const entry = savedEntries.find(e => e.id === preferredId);
     if (entry) {
-      bisLinkUrl.value     = entry.url;
-      compareVisible.value = true;
+      bisLinkUrl.value = entry.url;
       await runComparison();
       return;
     }
   }
 
   if (savedEntries.length === 1) {
-    bisLinkUrl.value     = savedEntries[0]!.url;
-    compareVisible.value = true;
+    bisLinkUrl.value = savedEntries[0]!.url;
   }
 }
 
@@ -127,10 +121,7 @@ export function clearComparison(): void {
   state.bisItemDataMap   = new Map();
   state.acquisitionData  = null;
   bisLinkEntries.value   = [];
-  bisLinkVisible.value   = false;
   bisLinkUrl.value       = "";
-  compareVisible.value   = false;
-  clearVisible.value     = false;
   // Job selection intentionally kept so the picker stays populated after clearing.
   // currentJobKey is also cleared so the next selectJob call re-runs catalog filtering.
   state.currentJobKey    = null;

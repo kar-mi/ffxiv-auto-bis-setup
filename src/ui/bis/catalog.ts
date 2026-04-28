@@ -1,7 +1,7 @@
 import type { BisCatalog, LocalBisEntry } from "../../types.ts";
 import { API_BASE } from "../constants.ts";
 import { logger } from "../dom.ts";
-import { state, bisLinkEntries, bisLinkVisible, bisLinkUrl, compareVisible } from "../state.ts";
+import { state, bisLinkEntries, bisLinkUrl } from "../state.ts";
 
 export async function loadCatalog(): Promise<void> {
   try {
@@ -56,13 +56,7 @@ export function refreshBisDropdown(): void {
     url:   e.url,
     label: `${e.id === preferredId ? "★ " : ""}${e.set.name}`,
   }));
-  bisLinkVisible.value = savedEntries.length > 0;
 
-  if (currentUrl && savedEntries.some(e => e.url === currentUrl)) {
-    bisLinkUrl.value = currentUrl;
-  } else {
-    bisLinkUrl.value     = "";
-    compareVisible.value = false;
-  }
+  bisLinkUrl.value = (currentUrl && savedEntries.some(e => e.url === currentUrl)) ? currentUrl : "";
 }
 

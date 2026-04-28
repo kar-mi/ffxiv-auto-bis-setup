@@ -1,4 +1,4 @@
-import { signal } from "@preact/signals";
+import { signal, computed } from "@preact/signals";
 import type { GearSnapshot, GearsetComparison, BisGearSet, BisCatalog, SlotName } from "../types.ts";
 import type { SlotAcquisitionStatus } from "../acquisition/types.ts";
 import type { ItemData } from "../xivapi/item-data.ts";
@@ -31,10 +31,10 @@ export function setManualJobAbbrev(abbrev: string | null): void {
 
 // BIS link dropdown — driven by comparison/catalog, consumed by GearTabPanel
 export const bisLinkEntries     = signal<{ url: string; label: string }[]>([]);
-export const bisLinkVisible     = signal(false);
 export const bisLinkUrl         = signal("");
-export const compareVisible     = signal(false);
-export const clearVisible       = signal(false);
+export const bisLinkVisible     = computed(() => bisLinkEntries.value.length > 0);
+export const compareVisible     = computed(() => bisLinkUrl.value !== "");
+export const clearVisible       = computed(() => comparisonData.value !== null);
 
 // Gear tab status elements — driven by dom.ts / gear-load.ts
 export const snapshotMeta       = signal<string | null>(null);
@@ -63,6 +63,6 @@ export const state = {
   set currentCatalog(v)         { currentCatalog.value = v; },
 };
 
-export function mergedItemDataMap(): Map<number, ItemData> {
-  return new Map([...currentItemDataMap.value, ...bisItemDataMap.value]);
-}
+export const mergedItemDataMap = computed(
+  () => new Map([...currentItemDataMap.value, ...bisItemDataMap.value]),
+);

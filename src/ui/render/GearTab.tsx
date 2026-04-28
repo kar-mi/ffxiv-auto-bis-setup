@@ -2,28 +2,10 @@ import { currentSnapshot, comparisonData, mergedItemDataMap } from "../state.ts"
 import { SLOT_LABELS, LEFT_SLOTS, RIGHT_SLOTS } from "../constants.ts";
 import { openCompareModal } from "./CompareModal.tsx";
 import { Corners } from "../components/Corners.tsx";
+import { MateriaCircles } from "../components/MateriaCircles.tsx";
+import { ItemIcon } from "../components/ItemIcon.tsx";
 import type { EquipmentPiece, SlotComparison } from "../../types.ts";
 import type { ItemData } from "../../xivapi/item-data.ts";
-
-function MateriaCircles({ piece, itemDataMap }: { piece: EquipmentPiece; itemDataMap: Map<number, ItemData> }) {
-  const totalSlots = piece.canOvermeld ? 5 : Math.min(piece.materiaSlots ?? 2, 2);
-  return (
-    <div class="flex gap-1 items-center mt-1">
-      {Array.from({ length: totalSlots }, (_, i) => {
-        const id = piece.materias[i] ?? 0;
-        const filled = id !== 0;
-        const isOvermeld = i >= 2;
-        const title = filled ? (itemDataMap.get(id)?.name ?? `Materia #${id}`) : undefined;
-        if (!filled) {
-          const border = isOvermeld ? "border-red-800" : "border-blue-800";
-          return <span key={i} data-tooltip={title} class={`w-2.5 h-2.5 rounded-full border ${border} flex-shrink-0 inline-block`} />;
-        }
-        const bg = isOvermeld ? "bg-red-500" : "bg-blue-400";
-        return <span key={i} data-tooltip={title} class={`w-2.5 h-2.5 rounded-full ${bg} flex-shrink-0 inline-block`} />;
-      })}
-    </div>
-  );
-}
 
 function StatusDot({ status }: { status: string | null }) {
   if (!status || status === "bis-empty") return null;
@@ -82,10 +64,7 @@ function GearCard({ slot, piece, itemDataMap, slotComp, index }: {
     >
       <Corners />
       <StatusDot status={status} />
-      {data?.icon
-        ? <img src={data.icon} alt="" class="w-10 h-10 rounded flex-shrink-0 object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-        : <div class="w-10 h-10 rounded bg-ffxiv-border flex-shrink-0" />
-      }
+      <ItemIcon src={data?.icon} className="flex-shrink-0" />
       <div class="flex-1 min-w-0">
         <p class="text-[10px] text-gray-500 uppercase tracking-wide leading-none mb-0.5">{label}</p>
         <p class="text-xs font-medium text-gray-100 truncate">
@@ -113,10 +92,7 @@ function CrystalCard({ piece, itemDataMap }: { piece: EquipmentPiece | null; ite
   return (
     <div class="gear-card relative w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 p-2 hover:border-ffxiv-gold transition-colors" style={{ animationDelay: "120ms" }}>
       <Corners />
-      {data?.icon
-        ? <img src={data.icon} alt="" class="w-10 h-10 rounded object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-        : <div class="w-10 h-10 rounded bg-ffxiv-border" />
-      }
+      <ItemIcon src={data?.icon} />
       <p class="text-[9px] text-gray-300 font-medium text-center leading-tight">{jobName}</p>
     </div>
   );
@@ -133,7 +109,7 @@ export function GearTab() {
     );
   }
 
-  const merged     = mergedItemDataMap();
+  const merged     = mergedItemDataMap.value;
   const slotCompMap: Record<string, SlotComparison> = {};
   for (const sc of comparisonData.value?.slots ?? []) {
     slotCompMap[sc.slot] = sc;

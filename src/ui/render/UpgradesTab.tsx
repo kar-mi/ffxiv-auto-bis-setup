@@ -3,6 +3,7 @@ import type { UpgradeItemsResponse, UpgradeItemEntry, UpgradeBaseGearEntry } fro
 import { API_BASE, SLOT_LABELS } from "../constants.ts";
 import { bisLinkUrl } from "../state.ts";
 import { Corners } from "../components/Corners.tsx";
+import { ItemIcon } from "../components/ItemIcon.tsx";
 
 type Status = "idle" | "loading" | "error";
 
@@ -49,10 +50,7 @@ function GridCell({ item }: { item: UpgradeItemEntry }) {
       data-tooltip={item.name ?? `Item #${item.itemId}`}
     >
       <Corners />
-      {item.icon
-        ? <img src={item.icon} alt="" class={`w-10 h-10 rounded object-cover${dim}`} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-        : <div class={`w-10 h-10 rounded bg-ffxiv-border${dim}`} />
-      }
+      <ItemIcon src={item.icon} className={dim} />
       <span class={`text-[11px] font-mono${have ? " text-green-400" : " text-gray-500 opacity-60"}`}>
         &times;{item.have}
       </span>
@@ -86,10 +84,7 @@ function BaseGearCell({ entry }: { entry: UpgradeBaseGearEntry }) {
       data-tooltip={`${label}: ${entry.name}`}
     >
       <Corners />
-      {entry.icon
-        ? <img src={entry.icon} alt="" class={`w-10 h-10 rounded object-cover${owned ? "" : " opacity-60"}`} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-        : <div class={`w-10 h-10 rounded bg-ffxiv-border${owned ? "" : " opacity-60"}`} />
-      }
+      <ItemIcon src={entry.icon} className={owned ? "" : "opacity-60"} />
       <span class="text-[10px] text-gray-400 truncate w-full text-center">{label}</span>
       <span class={`text-[11px] font-mono ${statusClass}`}>{statusLabel}</span>
     </div>

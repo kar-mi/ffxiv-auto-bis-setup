@@ -183,9 +183,7 @@ function GearTabPanel() {
               value={bisLinkUrl.value}
               class="bg-ffxiv-panel border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold"
               onChange={(e) => {
-                const url = (e.currentTarget as HTMLSelectElement).value;
-                bisLinkUrl.value     = url;
-                compareVisible.value = !!url;
+                bisLinkUrl.value = (e.currentTarget as HTMLSelectElement).value;
               }}
             >
               <option value="">— Select —</option>

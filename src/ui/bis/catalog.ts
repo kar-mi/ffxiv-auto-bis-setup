@@ -1,7 +1,12 @@
-import type { BisCatalog, LocalBisEntry } from "../../types.ts";
+import type { BisCatalog, LocalBisEntry, RaidTier } from "../../types.ts";
 import { API_BASE } from "../constants.ts";
 import { logger } from "../dom.ts";
 import { currentCatalog, currentJobAbbrev, bisLinkEntries, bisLinkUrl } from "../state.ts";
+
+interface PatchSetRequest {
+  name?: string;
+  raidTier?: RaidTier;
+}
 
 export async function loadCatalog(): Promise<void> {
   try {
@@ -13,12 +18,16 @@ export async function loadCatalog(): Promise<void> {
 }
 
 
-export async function patchSet(id: string, patch: Partial<LocalBisEntry>): Promise<void> {
-  await fetch(`${API_BASE}/bis/catalog/sets/${encodeURIComponent(id)}`, {
+export async function patchSet(id: string, patch: PatchSetRequest): Promise<void> {
+  const res = await fetch(`${API_BASE}/bis/catalog/sets/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(err?.error ?? `HTTP ${res.status}`);
+  }
   await loadCatalog();
   refreshBisDropdown();
 }
@@ -59,4 +68,3 @@ export function refreshBisDropdown(): void {
 
   bisLinkUrl.value = (currentUrl && savedEntries.some(e => e.url === currentUrl)) ? currentUrl : "";
 }
-

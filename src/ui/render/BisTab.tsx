@@ -2,6 +2,7 @@ import { signal } from "@preact/signals";
 import type { LocalBisEntry, RaidTier } from "../../types.ts";
 import { RAID_TIER_LABELS } from "../../types.ts";
 import { API_BASE } from "../constants.ts";
+import { setStatus } from "../dom.ts";
 import { currentCatalog, bisJobFilter } from "../state.ts";
 import { Corners } from "../components/Corners.tsx";
 import { loadCatalog, patchSet, refreshBisDropdown } from "../bis/catalog.ts";
@@ -38,10 +39,11 @@ function SetRow({ entry }: { entry: LocalBisEntry }) {
   async function saveName(name: string): Promise<void> {
     const trimmed = name.trim();
     if (!trimmed || trimmed === entry.set.name) { clearPending(); return; }
-    const setEntry = currentCatalog.value?.sets.find(s => s.id === entry.id);
-    if (setEntry) {
-      await patchSet(entry.id, { set: { ...setEntry.set, name: trimmed } });
+    try {
+      await patchSet(entry.id, { name: trimmed });
       clearPending();
+    } catch (e) {
+      setStatus(`Could not save BIS set: ${e instanceof Error ? e.message : String(e)}`, true);
     }
   }
 

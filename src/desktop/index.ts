@@ -1,5 +1,4 @@
 import Electrobun, { BrowserWindow } from "electrobun/bun";
-import { native } from "../../node_modules/electrobun/dist/api/bun/proc/native.ts";
 import { dlopen, FFIType } from "bun:ffi";
 import path from "path";
 import { existsSync, writeFileSync } from "fs";
@@ -82,8 +81,8 @@ const win = new BrowserWindow({
   title: "FFXIV Gear Setup",
   url: `http://localhost:${SERVER_PORT}`,
   frame: savedState,
-  titleBarStyle: "hiddenInset",
-  transparent: true,
+  titleBarStyle: "default",
+  transparent: false,
 });
 
 // Persist window position/size on move or resize (debounced).
@@ -101,10 +100,6 @@ function scheduleWindowStateSave(frame: WindowState): void {
   }, 500);
 }
 
-function resizeMainWebview(width: number, height: number): void {
-  native.symbols.resizeWebview(win.webview.ptr, 0, 0, width, height);
-}
-
 setWindowControls({
   minimize: () => win.minimize(),
   maximize: () => win.maximize(),
@@ -117,7 +112,6 @@ setWindowControls({
 });
 
 Electrobun.events.on(`resize-${win.id}`, (event: { data: { x: number; y: number; width: number; height: number } }) => {
-  resizeMainWebview(event.data.width, event.data.height);
   scheduleWindowStateSave({ x: event.data.x, y: event.data.y, width: event.data.width, height: event.data.height });
 });
 Electrobun.events.on(`move-${win.id}`, (event: { data: { x: number; y: number } }) => {

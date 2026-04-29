@@ -22,7 +22,7 @@ import { AcquisitionTab } from "./AcquisitionTab.tsx";
 import { GearTab } from "./GearTab.tsx";
 import { SavedSetsTab } from "./BisTab.tsx";
 import { CompareModal } from "./CompareModal.tsx";
-import { SettingsModal } from "./SettingsModal.tsx";
+import { SettingsModal, settingsOpen } from "./SettingsModal.tsx";
 import { Corners } from "../components/Corners.tsx";
 import { SnapshotStatus } from "../components/SnapshotStatus.tsx";
 
@@ -88,7 +88,7 @@ function TabBar() {
   const current = activeTab.value;
   return (
     <div
-      class="shrink-0 flex justify-center border-b border-ffxiv-border bg-ffxiv-panel"
+      class="shrink-0 flex items-center justify-center border-b border-ffxiv-border bg-ffxiv-panel relative"
       style={{ borderBottomColor: "rgba(200,168,75,0.15)" }}
     >
       {MAIN_TABS.map(({ id, label, onActivate }) => {
@@ -107,6 +107,12 @@ function TabBar() {
           </button>
         );
       })}
+      <button
+        class="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-[10px] border border-ffxiv-border rounded text-gray-500 hover:text-ffxiv-gold hover:border-ffxiv-gold/60 transition-colors"
+        onClick={() => { settingsOpen.value = true; }}
+      >
+        Settings
+      </button>
     </div>
   );
 }

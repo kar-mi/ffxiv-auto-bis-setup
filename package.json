@@ -6,12 +6,16 @@
     "start": "bun run src/server/index.ts",
     "desktop": "electrobun dev",
     "desktop:build": "electrobun build canary",
-    "build:ui": "bun build src/ui/main.tsx --outfile public/bundle.js --target browser",
+    "build": "bun run build:ui",
+    "build:css": "tailwindcss -i ./src/ui/styles.css -o ./public/styles.css --minify",
+    "watch:css": "tailwindcss -i ./src/ui/styles.css -o ./public/styles.css --watch",
+    "build:ui": "bun run build:css && bun build src/ui/main.tsx --outfile public/bundle.js --target browser",
     "watch:ui": "bun build src/ui/main.tsx --outfile public/bundle.js --target browser --watch"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "electrobun": "1.16.0",
+    "tailwindcss": "3",
     "typescript": "^5.0.0"
   },
   "dependencies": {

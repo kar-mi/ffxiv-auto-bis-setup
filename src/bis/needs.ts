@@ -9,11 +9,41 @@ import type {
 import { buildItemCounts } from '../inventory/counts.ts';
 import { multisetDiff } from './multiset.ts';
 
+function buildMateriaChange(
+  slotComp: GearsetComparison['slots'][number],
+  bis: BisGearSet,
+  bagCounts: Map<number, number>,
+): MateriaChange | null {
+  const bisItem = bis.items[slotComp.slot];
+  if (!bisItem) return null;
+
+  const equipped = slotComp.status === 'wrong-materia'
+    ? (slotComp.equippedMaterias ?? [])
+    : [];
+  const bisMs = slotComp.bisMaterias ?? bisItem.materias;
+
+  const { onlyA: toRemove, onlyB: toAdd } = multisetDiff(equipped, bisMs);
+  if (toAdd.length === 0 && toRemove.length === 0) return null;
+
+  const quantityInBags: Record<number, number> = {};
+  for (const mId of toAdd) {
+    quantityInBags[mId] = bagCounts.get(mId) ?? 0;
+  }
+
+  return {
+    slot: slotComp.slot,
+    bisItemId: bisItem.itemId,
+    toAdd,
+    toRemove,
+    quantityInBags,
+  };
+}
+
 /**
  * Compute what a player still needs to acquire or re-meld to complete a BIS set.
  *
  * - `wrong-item` / `missing` slots → adds an ItemNeed with inventory cross-reference
- * - `wrong-materia` slots → adds a MateriaChange listing what to add/remove
+ * - slots with missing/wrong materia → adds a MateriaChange listing what to add/remove
  */
 export function computeNeeds(
   comparison: GearsetComparison,
@@ -37,27 +67,9 @@ export function computeNeeds(
       });
     }
 
-    if (slotComp.status === 'wrong-materia') {
-      const bisItem = bis.items[slotComp.slot];
-      if (!bisItem) continue;
-
-      const equipped = slotComp.equippedMaterias ?? [];
-      const bisMs = slotComp.bisMaterias ?? [];
-
-      const { onlyA: toRemove, onlyB: toAdd } = multisetDiff(equipped, bisMs);
-
-      const quantityInBags: Record<number, number> = {};
-      for (const mId of toAdd) {
-        quantityInBags[mId] = bagCounts.get(mId) ?? 0;
-      }
-
-      materiaChanges.push({
-        slot: slotComp.slot,
-        bisItemId: bisItem.itemId,
-        toAdd,
-        toRemove,
-        quantityInBags,
-      });
+    if (slotComp.status === 'wrong-item' || slotComp.status === 'missing' || slotComp.status === 'wrong-materia') {
+      const change = buildMateriaChange(slotComp, bis, bagCounts);
+      if (change) materiaChanges.push(change);
     }
   }
 

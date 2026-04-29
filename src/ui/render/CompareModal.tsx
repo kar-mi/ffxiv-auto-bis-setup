@@ -10,10 +10,11 @@ import { Corners } from "../components/Corners.tsx";
 import { MateriaCircles } from "../components/MateriaCircles.tsx";
 import { ItemIcon } from "../components/ItemIcon.tsx";
 
-function MateriaCompareCircles({ piece, bisItem, itemDataMap }: {
+function MateriaCompareCircles({ piece, bisItem, itemDataMap, forceCorrect = false }: {
   piece: EquipmentPiece | null;
   bisItem: EquipmentPiece | null;
   itemDataMap: Map<number, ItemData>;
+  forceCorrect?: boolean;
 }) {
   const equippedSlots = piece?.canOvermeld ? 5 : Math.min(piece?.materiaSlots ?? 2, 2);
   const totalSlots = Math.max(equippedSlots, bisItem?.materias?.filter(id => id !== 0).length ?? 0);
@@ -30,7 +31,7 @@ function MateriaCompareCircles({ piece, bisItem, itemDataMap }: {
           const border = isOvermeld ? "border-red-800" : "border-blue-800";
           return <span key={i} data-tooltip={title} class={`w-2.5 h-2.5 rounded-full border ${border} flex-shrink-0 inline-block`} />;
         }
-        const bg = matches ? "bg-blue-400" : (isOvermeld ? "bg-red-500" : "bg-yellow-500");
+        const bg = forceCorrect || matches ? "bg-blue-400" : (isOvermeld ? "bg-red-500" : "bg-yellow-500");
         return <span key={i} data-tooltip={title} class={`w-2.5 h-2.5 rounded-full ${bg} flex-shrink-0 inline-block`} />;
       })}
     </div>
@@ -67,7 +68,7 @@ function ModalItemColumn({ heading, piece, bisItem, itemDataMap, status }: {
             : <p class="text-xs text-gray-500 italic">Empty</p>
           }
           {piece && (status === "wrong-materia"
-            ? <MateriaCompareCircles piece={piece} bisItem={bisItem} itemDataMap={itemDataMap} />
+            ? <MateriaCompareCircles piece={piece} bisItem={bisItem} itemDataMap={itemDataMap} forceCorrect={isBis} />
             : <MateriaCircles piece={piece} itemDataMap={itemDataMap} />
           )}
         </div>
@@ -98,6 +99,9 @@ function MateriaAdvice({ slotComp, itemDataMap }: { slotComp: SlotComparison; it
   const toAdd    = change?.toAdd ?? [];
   const toRemove = change?.toRemove ?? [];
   const bisCount = (slotComp.bisMaterias ?? []).filter(id => id !== 0).length;
+  const hasAdvice = toAdd.length > 0 || toRemove.length > 0 || bisCount > 2;
+
+  if (!hasAdvice) return null;
 
   return (
     <>
@@ -211,10 +215,17 @@ export function CompareModal() {
   const merged   = mergedItemDataMap.value;
 
   const bisPiece: EquipmentPiece | null = bisRaw
-    ? { itemId: bisRaw.itemId, materias: bisRaw.materias, hq: false, canOvermeld: false, materiaSlots: 0 }
+    ? {
+      itemId: bisRaw.itemId,
+      materias: bisRaw.materias,
+      hq: false,
+      canOvermeld: bisRaw.materias.filter(id => id !== 0).length > 2,
+      materiaSlots: Math.max(2, bisRaw.materias.filter(id => id !== 0).length),
+    }
     : null;
 
   const slotAcq = acquisitionData.value?.find(s => s.slot === slot) ?? null;
+  const hasMateriaChange = needsData.value?.materiaChanges.some(c => c.slot === slot) ?? false;
   const close = (): void => { selectedSlot.value = null; };
 
   return (
@@ -238,10 +249,10 @@ export function CompareModal() {
           <ModalItemColumn heading="BIS"      piece={bisPiece}  bisItem={equipped} itemDataMap={merged} status={slotComp.status} />
         </div>
         <div class="mt-4 pt-4 border-t border-ffxiv-border space-y-3">
-          {slotComp.status === "wrong-materia"
-            ? <MateriaAdvice slotComp={slotComp} itemDataMap={merged} />
-            : <AcquisitionAdvice s={slotAcq ?? { coffer: null, books: null, upgrade: null }} itemDataMap={merged} />
-          }
+          {slotComp.status !== "wrong-materia" && (
+            <AcquisitionAdvice s={slotAcq ?? { coffer: null, books: null, upgrade: null }} itemDataMap={merged} />
+          )}
+          {hasMateriaChange && <MateriaAdvice slotComp={slotComp} itemDataMap={merged} />}
         </div>
       </div>
     </div>

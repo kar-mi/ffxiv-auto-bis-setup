@@ -6,7 +6,7 @@ import {
   activeTab,
   bisLinkEntries, bisLinkVisible, bisLinkUrl,
   compareVisible, clearVisible,
-  snapshotMeta, statusMsg, statusIsError,
+  statusMsg, statusIsError,
   currentJobAbbrev, cachedJobs,
 } from "../state.ts";
 import { loadGear, loadGearForClassId } from "../gear-load.ts";
@@ -14,7 +14,7 @@ import { runComparison, clearComparison } from "../bis/comparison.ts";
 import { JOBS, JOB_ABBREV_TO_CLASS_ID } from "../constants.ts";
 import { addSetFromUrl } from "../bis/catalog.ts";
 import {
-  balanceTier, balanceLoading, balanceLinks, balanceError,
+  balanceTier, balanceLoading, balanceLinks, balanceError, balanceJobAbbrev,
   loadBalanceLinks, addBalanceLink,
 } from "../bis/balance.ts";
 import { loadUpgradeItems, UpgradesTab } from "./UpgradesTab.tsx";
@@ -24,6 +24,7 @@ import { SavedSetsTab } from "./BisTab.tsx";
 import { CompareModal } from "./CompareModal.tsx";
 import { SettingsModal } from "./SettingsModal.tsx";
 import { Corners } from "../components/Corners.tsx";
+import { SnapshotStatus } from "../components/SnapshotStatus.tsx";
 
 // ---- Sub-tab and manual-add form state (local to this module) ---------------
 
@@ -222,9 +223,7 @@ function GearTabPanel() {
           {statusMsg.value}
         </p>
       )}
-      {snapshotMeta.value && (
-        <p class="text-xs text-gray-500 mb-4">{snapshotMeta.value}</p>
-      )}
+      <SnapshotStatus />
       <GearTab />
     </div>
   );
@@ -236,6 +235,7 @@ function BisTabPanel() {
   return (
     <div class={isActive ? "max-w-3xl mx-auto px-4 py-6" : "hidden"}>
       <h2 class="font-cinzel text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4">BIS Sets</h2>
+      <SnapshotStatus />
 
       <div class="flex gap-0 border-b border-ffxiv-border mb-4">
         {MANAGE_TABS.map(({ id, label }) => {
@@ -320,6 +320,30 @@ function BisTabPanel() {
             <TierOptions />
           </select>
         </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[10px] text-gray-500 uppercase tracking-wide">Job</label>
+          <select
+            value={balanceJobAbbrev.value}
+            class="bg-ffxiv-dark border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold"
+            onChange={(e) => { balanceJobAbbrev.value = (e.currentTarget as HTMLSelectElement).value; }}
+          >
+            <option value="">— Auto-detect from gear —</option>
+            {[
+              { key: "tanks",   label: "Tanks"   },
+              { key: "healers", label: "Healers" },
+              { key: "melee",   label: "Melee"   },
+              { key: "ranged",  label: "Ranged"  },
+              { key: "casters", label: "Casters" },
+            ].map(({ key, label }) => {
+              const roleJobs = JOBS.filter(j => j.role === key);
+              return (
+                <optgroup key={key} label={label}>
+                  {roleJobs.map(j => <option key={j.abbrev} value={j.abbrev}>{j.label}</option>)}
+                </optgroup>
+              );
+            })}
+          </select>
+        </div>
         <button
           class="px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors self-start disabled:opacity-50"
           disabled={balanceLoading.value}
@@ -365,6 +389,7 @@ function UpgradesTabPanel() {
   const isActive = activeTab.value === "upgrades";
   return (
     <div class={isActive ? "max-w-3xl mx-auto px-4 py-6" : "hidden"}>
+      <SnapshotStatus />
       <div class="flex items-center justify-between mb-6">
         <h2 class="font-cinzel text-sm font-semibold text-ffxiv-gold uppercase tracking-wide">Items</h2>
         <button
@@ -384,6 +409,7 @@ function AcquisitionTabPanel() {
   const isActive = activeTab.value === "acquisition";
   return (
     <div class={isActive ? "max-w-3xl mx-auto px-4 py-6" : "hidden"}>
+      <SnapshotStatus />
       <AcquisitionTab />
     </div>
   );
@@ -395,7 +421,7 @@ export function App() {
   return (
     <>
       <TabBar />
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto pb-2">
         <GearTabPanel />
         <BisTabPanel />
         <UpgradesTabPanel />

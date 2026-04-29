@@ -1,10 +1,13 @@
 const MIN_W = 480;
 const MIN_H = 320;
+const EDGE_PX = 8;
 
 const NEEDS_POSITION = new Set(["n", "w", "nw", "ne", "sw"]);
 
 interface ResizeState {
   dir: string;
+  handle: HTMLElement;
+  pointerId: number;
   startX: number;
   startY: number;
   startW: number;
@@ -43,15 +46,43 @@ function flushResize(): void {
   }).catch(err => { if ((err as Error).name !== "AbortError") console.error("[resize]", err); });
 }
 
+function setHandlePointerEvents(handles: HTMLElement[], clientX: number, clientY: number): void {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const nearN = clientY <= EDGE_PX;
+  const nearS = clientY >= h - EDGE_PX;
+  const nearW = clientX <= EDGE_PX;
+  const nearE = clientX >= w - EDGE_PX;
+
+  for (const handle of handles) {
+    const dir = handle.dataset["dir"]!;
+    const near =
+      (dir === "n"  && nearN && !nearW && !nearE) ||
+      (dir === "s"  && nearS && !nearW && !nearE) ||
+      (dir === "w"  && nearW && !nearN && !nearS) ||
+      (dir === "e"  && nearE && !nearN && !nearS) ||
+      (dir === "nw" && nearN && nearW) ||
+      (dir === "ne" && nearN && nearE) ||
+      (dir === "sw" && nearS && nearW) ||
+      (dir === "se" && nearS && nearE);
+    handle.style.pointerEvents = near ? "auto" : "none";
+  }
+}
+
 export function initResize(): void {
-  document.querySelectorAll<HTMLElement>("[data-dir]").forEach(handle => {
+  const handles = Array.from(document.querySelectorAll<HTMLElement>("[data-dir]"));
+
+  // Disable all handles by default; proximity detection re-enables them.
+  for (const h of handles) h.style.pointerEvents = "none";
+
+  handles.forEach(handle => {
     handle.addEventListener("pointerdown", e => {
       e.preventDefault();
       const dir = handle.dataset["dir"]!;
 
       if (!NEEDS_POSITION.has(dir)) {
         resizeState = {
-          dir,
+          dir, handle, pointerId: e.pointerId,
           startX: e.clientX, startY: e.clientY,
           startW: window.innerWidth, startH: window.innerHeight,
           startWinX: 0, startWinY: 0,
@@ -65,7 +96,7 @@ export function initResize(): void {
           .then(r => r.json())
           .then((frame: { x: number; y: number; width: number; height: number }) => {
             resizeState = {
-              dir,
+              dir, handle, pointerId: e.pointerId,
               startX: e.clientX, startY: e.clientY,
               startW: frame.width, startH: frame.height,
               startWinX: frame.x, startWinY: frame.y,
@@ -81,7 +112,10 @@ export function initResize(): void {
   });
 
   document.addEventListener("pointermove", e => {
-    if (!resizeState) return;
+    if (!resizeState) {
+      setHandlePointerEvents(handles, e.clientX, e.clientY);
+      return;
+    }
     const { dir, startX, startY, startW, startH, startWinX, startWinY } = resizeState;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
@@ -101,7 +135,11 @@ export function initResize(): void {
     if (!resizeRafId) resizeRafId = requestAnimationFrame(flushResize);
   });
 
-  document.addEventListener("pointerup", () => {
+  document.addEventListener("pointerup", e => {
+    if (resizeState) {
+      try { resizeState.handle.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+      setHandlePointerEvents(handles, e.clientX, e.clientY);
+    }
     if (resizeRafId) { cancelAnimationFrame(resizeRafId); resizeRafId = null; }
     resizeAbort?.abort();
     resizeAbort = null;

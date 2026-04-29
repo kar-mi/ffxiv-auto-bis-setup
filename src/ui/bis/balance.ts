@@ -11,16 +11,17 @@ export interface BalanceLink extends BisLink {
   addError: string | null;
 }
 
-export const balanceTier    = signal<RaidTier>("aac_hw");
-export const balanceLoading = signal(false);
-export const balanceLinks   = signal<BalanceLink[] | null>(null);
-export const balanceError   = signal<string | null>(null);
+export const balanceTier       = signal<RaidTier>("aac_hw");
+export const balanceLoading    = signal(false);
+export const balanceLinks      = signal<BalanceLink[] | null>(null);
+export const balanceError      = signal<string | null>(null);
+export const balanceJobAbbrev  = signal<string>("");
 
 export async function loadBalanceLinks(): Promise<void> {
-  const abbrev = currentJobAbbrev.value;
+  const abbrev = balanceJobAbbrev.value || currentJobAbbrev.value;
   if (!abbrev) {
     balanceLinks.value = null;
-    balanceError.value = "Load gear first to detect your job.";
+    balanceError.value = "Select a job from the dropdown or load gear first.";
     return;
   }
   const job = JOBS.find(j => j.abbrev === abbrev);

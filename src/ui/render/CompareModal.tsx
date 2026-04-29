@@ -16,7 +16,7 @@ function MateriaCompareCircles({ piece, bisItem, itemDataMap }: {
   itemDataMap: Map<number, ItemData>;
 }) {
   const equippedSlots = piece?.canOvermeld ? 5 : Math.min(piece?.materiaSlots ?? 2, 2);
-  const totalSlots = Math.max(equippedSlots, bisItem?.materias?.length ?? 0, 2);
+  const totalSlots = Math.max(equippedSlots, bisItem?.materias?.filter(id => id !== 0).length ?? 0);
   return (
     <div class="flex gap-1 items-center mt-1">
       {Array.from({ length: totalSlots }, (_, i) => {

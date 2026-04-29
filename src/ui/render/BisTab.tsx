@@ -6,7 +6,8 @@ import { currentCatalog, bisJobFilter } from "../state.ts";
 import { Corners } from "../components/Corners.tsx";
 import { loadCatalog, patchSet, refreshBisDropdown } from "../bis/catalog.ts";
 
-const deletingId = signal<string | null>(null);
+const deletingId   = signal<string | null>(null);
+const pendingNames = signal<Record<string, string>>({});
 
 function TierSelect({ entry }: { entry: LocalBisEntry }) {
   return (
@@ -25,6 +26,24 @@ function TierSelect({ entry }: { entry: LocalBisEntry }) {
 function SetRow({ entry }: { entry: LocalBisEntry }) {
   const isDefault  = currentCatalog.value?.preferences?.[entry.set.job] === entry.id;
   const isDeleting = deletingId.value === entry.id;
+  const pendingName = pendingNames.value[entry.id];
+  const isDirty = pendingName !== undefined && pendingName !== entry.set.name;
+
+  function clearPending(): void {
+    const next = { ...pendingNames.value };
+    delete next[entry.id];
+    pendingNames.value = next;
+  }
+
+  async function saveName(name: string): Promise<void> {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === entry.set.name) { clearPending(); return; }
+    const setEntry = currentCatalog.value?.sets.find(s => s.id === entry.id);
+    if (setEntry) {
+      await patchSet(entry.id, { set: { ...setEntry.set, name: trimmed } });
+      clearPending();
+    }
+  }
 
   return (
     <div class="relative flex flex-col gap-1.5 bg-ffxiv-dark border border-ffxiv-border rounded px-3 py-2" data-entry-id={entry.id}>
@@ -33,29 +52,27 @@ function SetRow({ entry }: { entry: LocalBisEntry }) {
         <div class="flex-1 min-w-0">
           <input
             class="text-xs text-gray-200 font-medium bg-ffxiv-dark border border-ffxiv-border rounded w-full px-1.5 py-0.5 focus:outline-none focus:border-ffxiv-gold/50 truncate"
-            defaultValue={entry.set.name}
+            value={pendingName ?? entry.set.name}
             data-id={entry.id}
-            data-original={entry.set.name}
             title={entry.url}
-            onBlur={(e) => {
-              const input  = e.currentTarget as HTMLInputElement;
-              const name   = input.value.trim();
-              const original = input.dataset["original"];
-              if (!name || name === original) return;
-              const setEntry = currentCatalog.value?.sets.find(s => s.id === entry.id);
-              if (setEntry) {
-                void patchSet(entry.id, { set: { ...setEntry.set, name } }).then(() => {
-                  input.dataset["original"] = name;
-                });
-              }
+            onInput={(e) => {
+              pendingNames.value = { ...pendingNames.value, [entry.id]: (e.currentTarget as HTMLInputElement).value };
             }}
             onKeyDown={(e) => {
               const input = e.currentTarget as HTMLInputElement;
-              if (e.key === "Enter")  { e.preventDefault(); input.blur(); }
-              if (e.key === "Escape") { input.value = input.dataset["original"] ?? ""; input.blur(); }
+              if (e.key === "Enter")  { e.preventDefault(); void saveName(input.value); input.blur(); }
+              if (e.key === "Escape") { clearPending(); input.blur(); }
             }}
           />
         </div>
+        {isDirty && (
+          <button
+            class="flex-shrink-0 text-[10px] px-1.5 py-0.5 border border-ffxiv-gold/60 rounded text-ffxiv-gold hover:bg-ffxiv-gold/10 transition-colors"
+            onClick={() => void saveName(pendingName!)}
+          >
+            Save
+          </button>
+        )}
         <span class="text-[10px] text-gray-500 flex-shrink-0">{entry.set.job}</span>
         <button
           class={`flex-shrink-0 text-[10px] px-1.5 py-0.5 border rounded transition-colors ${isDefault ? "text-ffxiv-gold border-ffxiv-gold/60" : "text-gray-500 border-ffxiv-border hover:text-ffxiv-gold hover:border-ffxiv-gold/60"}`}

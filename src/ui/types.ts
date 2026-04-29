@@ -19,6 +19,7 @@ export interface UpgradeItemsResponse {
   currency:  UpgradeItemEntry[];
   coffers:   UpgradeItemEntry[];
   materials: UpgradeItemEntry[];
+  materia?:  UpgradeItemEntry[];
   books:     UpgradeItemEntry[];
   baseGear?: UpgradeBaseGearEntry[];
 }

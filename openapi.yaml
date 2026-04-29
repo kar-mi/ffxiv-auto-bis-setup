@@ -534,6 +534,10 @@ paths:
                   materials:
                     type: array
                     items: { $ref: "#/components/schemas/UpgradeItem" }
+                  materia:
+                    type: array
+                    description: Materia still needed for BIS melds (only present when ?url= and gear are available)
+                    items: { $ref: "#/components/schemas/UpgradeItem" }
                   books:
                     type: array
                     items: { $ref: "#/components/schemas/UpgradeItem" }

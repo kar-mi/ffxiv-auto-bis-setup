@@ -16,6 +16,7 @@ const CATEGORIES: { key: keyof Omit<UpgradeItemsResponse, "baseGear">; label: st
   { key: "currency",  label: "Currency"  },
   { key: "coffers",   label: "Coffers"   },
   { key: "materials", label: "Materials" },
+  { key: "materia",   label: "Materia"   },
   { key: "books",     label: "Books"     },
 ];
 
@@ -100,7 +101,7 @@ export function UpgradesTab() {
     return <p class="text-xs text-gray-500 italic">No data yet — load gear and run a BIS comparison first.</p>;
   }
 
-  const sections = CATEGORIES.filter(({ key }) => data[key].length > 0);
+  const sections = CATEGORIES.filter(({ key }) => (data[key]?.length ?? 0) > 0);
   const hasBaseGear = data.baseGear && data.baseGear.length > 0;
 
   if (sections.length === 0 && !hasBaseGear) {
@@ -121,7 +122,7 @@ export function UpgradesTab() {
         <div class="mb-5" key={key}>
           <h3 class="font-cinzel text-xs font-semibold text-ffxiv-gold uppercase tracking-wide mb-2">{label}</h3>
           <div class="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2">
-            {data[key].map(item => <GridCell key={item.itemId} item={item} />)}
+            {data[key]!.map(item => <GridCell key={item.itemId} item={item} />)}
           </div>
         </div>
       ))}

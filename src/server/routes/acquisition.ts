@@ -109,7 +109,9 @@ export async function tryHandle(req: Request, ctx: ServerCtx): Promise<Response 
       slot: string; itemId: number; name: string; icon: string | null;
       haveEquipped: boolean; haveInBags: number; haveInArmory: number;
     };
+    type MateriaEntry = { itemId: number; name: string; icon: string | null; have: number };
     let baseGear: BaseGearEntry[] | undefined;
+    let materia: MateriaEntry[] | undefined;
 
     if (xivgearUrl && ctx.getSelectedGear()) {
       try {
@@ -139,12 +141,27 @@ export async function tryHandle(req: Request, ctx: ServerCtx): Promise<Response 
               };
             })
         );
+
+        const materiaCount = new Map<number, number>();
+        for (const change of gearNeeds.materiaChanges) {
+          for (const mId of change.toAdd) {
+            materiaCount.set(mId, (materiaCount.get(mId) ?? 0) + 1);
+          }
+        }
+        if (materiaCount.size > 0) {
+          materia = await Promise.all(
+            [...materiaCount.keys()].map(async id => {
+              const d = await fetchItemData(id);
+              return { itemId: id, name: d.name, icon: d.icon, have: have(id) };
+            })
+          );
+        }
       } catch {
-        // silently omit baseGear if BIS fetch fails
+        // silently omit baseGear/materia if BIS fetch fails
       }
     }
 
-    return json({ currency, coffers, materials, books, ...(baseGear ? { baseGear } : {}) });
+    return json({ currency, coffers, materials, ...(materia ? { materia } : {}), books, ...(baseGear ? { baseGear } : {}) });
   }
 
   return null;

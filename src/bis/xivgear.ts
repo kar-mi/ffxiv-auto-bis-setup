@@ -17,6 +17,7 @@ function fetchFullData(xivgearUrl: string): Promise<XivgearFullData> {
       if (!res.ok) throw new Error(`xivgear API returned ${res.status} for ${xivgearUrl}`);
       return res.json() as Promise<XivgearFullData>;
     });
+    pending.catch(() => fullDataCache.delete(apiUrl));
     fullDataCache.set(apiUrl, pending);
   }
   return pending;

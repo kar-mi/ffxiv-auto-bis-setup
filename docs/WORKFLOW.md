@@ -72,10 +72,12 @@ Browser / UI  ──────────────────────
   GET  /*                  → serves public/* (static files)                 │
         │                                                                    │
         ▼                                                                    │
-src/server/index.ts  (Bun.serve)                                            │
+src/server/index.ts  (Bun.serve — async startServer())                      │
   - latestPcapGear: GearSnapshot | null      (in-memory; resets on restart) │
   - latestInventory: InventorySnapshot | null (in-memory; resets on restart)│
+  - awaits cache restore before first request (no startup race)             │
   - BIS catalog persisted to data/bis/catalog.json                          │
+  - routes delegated to src/server/routes/*                                 │
         │                                                                    │
         └────────────────────────────────────────────────────────────────────┘
 ```
@@ -166,10 +168,14 @@ src/
 │   ├── local-store.ts       — BisCatalog CRUD persisted to data/bis/catalog.json
 │   │                          loadCatalog, saveCatalog, upsertSet, removeSet,
 │   │                          setPreference, clearPreference, makeEntryId, canonicalUrl
+│   ├── multiset.ts          — multisetEquals(a, b) — order-independent array comparison
 │   ├── needs.ts             — computeNeeds(comparison, bis, inventory) → GearNeeds
 │   └── xivgear.ts           — fetchBisSet(url, setIndex) → BisGearSet
 │                              fetchSetNames(url) → string[]
 │                              resolveSetIndex(url, setParam?) → number
+│
+├── inventory/
+│   └── counts.ts            — buildItemCounts(inventory) → Map<itemId, quantity>
 │
 ├── dat/
 │   ├── finder.ts            — getFfxivDataDir() → string
@@ -197,6 +203,10 @@ src/
 │   ├── host.ts              — thin runner for GearPacketCapture
 │   │                          depends on: pcap/capture.ts, pcap/materia-data.ts
 │   │                          spawned as a child process by desktop/index.ts
+│   ├── snapshot-cache.ts    — saveGearCache / loadGearCache / saveInventoryCache
+│   │                          / loadInventoryCache / saveJobGearCache / loadJobGearCache
+│   │                          / listJobGearCaches — persists snapshots to data/cache/
+│   │                          uses writeJsonAtomic for crash-safe writes
 │   ├── materia.ts           — resolveMateriaItemId(type, tier, data)
 │   │                          converts raw packet materia fields → FFXIV item ID
 │   └── materia-data.ts      — loadMateriaData(projectRoot)
@@ -204,8 +214,24 @@ src/
 │                              compatible with both Bun and Node
 │
 ├── server/
-│   └── index.ts             — startServer(port, publicDir, projectRoot)
-│                              Bun HTTP server; also the standalone entry point
+│   ├── index.ts             — startServer(port, publicDir, projectRoot) [async]
+│   │                          Bun HTTP server; standalone entry point
+│   │                          Awaits cache restore; delegates to routes/*
+│   ├── ctx.ts               — ServerCtx interface + WindowControls
+│   ├── helpers.ts           — json(), notFound() response helpers
+│   └── routes/
+│       ├── window.ts        — POST /window/minimize|maximize|close|setFrame, GET /window/frame
+│       ├── pcap.ts          — GET|POST /pcap/gear|inventory
+│       │                      GET /pcap/gear-cache, GET /pcap/gear-cache/:classId
+│       │                      POST /pcap/gear-selected
+│       ├── item.ts          — GET /item/:id
+│       ├── bis.ts           — GET /balance/:role/:job, GET /bis/sets, GET /bis
+│       │                      GET|POST /bis/catalog, POST /bis/catalog/sets
+│       │                      PATCH|DELETE /bis/catalog/sets/:id
+│       │                      PUT|DELETE /bis/catalog/preferences/:job
+│       │                      GET /bis/full, GET /needs, GET /compare
+│       ├── acquisition.ts   — GET /acquisition, GET /upgrade-items
+│       └── debug.ts         — GET /debug/inventory
 │
 ├── ui/                      — frontend TypeScript; built to public/bundle.js
 │   ├── main.tsx             — entry point; mounts <App />, calls loadCatalog + loadGear
@@ -232,6 +258,10 @@ src/
 │   └── window/
 │       ├── resize.ts        — initResize(); pointer-event window resize handles
 │       └── controls.ts      — initWindowControls(); close/minimize/maximize/settings
+│
+├── util/
+│   └── atomic-write.ts      — writeJsonAtomic(absPath, value)
+│                              write-to-tmp + rename; crash-safe on same filesystem
 │
 └── xivapi/
     └── item-data.ts         — fetchItemData(itemId) → ItemData

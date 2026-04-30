@@ -386,6 +386,164 @@ paths:
         "200":
           $ref: "#/components/responses/Ok"
 
+  /pcap/gear-cache:
+    get:
+      tags: [pcap]
+      summary: List per-job gear caches
+      description: >
+        Returns a summary of all per-classId gear snapshots persisted in
+        `data/cache/gear-<classId>.json`.
+      responses:
+        "200":
+          description: List of cached jobs and their capture timestamps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [classId, capturedAt]
+                  properties:
+                    classId:
+                      type: integer
+                    capturedAt:
+                      type: string
+                      format: date-time
+
+  /pcap/gear-cache/{classId}:
+    get:
+      tags: [pcap]
+      summary: Get cached gear for a specific job
+      description: >
+        Returns the cached `GearSnapshot` for the given `classId`, read from
+        `data/cache/gear-<classId>.json`. The response includes `fromCache: true`.
+        Returns 404 if no cache file exists for that classId.
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 19
+      responses:
+        "200":
+          description: Cached gear snapshot
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/GearSnapshot"
+                  - type: object
+                    properties:
+                      fromCache:
+                        type: boolean
+                        example: true
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /pcap/gear-selected:
+    post:
+      tags: [pcap]
+      summary: Set the selected gear snapshot
+      description: >
+        Overrides the "selected" gear used by comparison and acquisition
+        endpoints without replacing the latest live snapshot. Used by the UI
+        to switch the active job without waiting for a new packet capture.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GearSnapshot"
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /acquisition:
+    get:
+      tags: [compare]
+      summary: Per-slot acquisition paths
+      description: >
+        Returns per-slot acquisition status — coffer availability, book
+        exchange options, and upgrade paths — cross-referenced against the
+        current inventory. Returns 409 if no gear snapshot is available.
+      parameters:
+        - $ref: "#/components/parameters/XivgearUrl"
+        - $ref: "#/components/parameters/SetParam"
+      responses:
+        "200":
+          description: Per-slot acquisition status array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SlotAcquisitionStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: No gear snapshot available yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          $ref: "#/components/responses/UpstreamError"
+
+  /debug/inventory:
+    get:
+      tags: [pcap]
+      summary: Inventory sorted by ITEMODR.DAT visual order
+      description: >
+        Returns the latest inventory snapshot grouped by container and sorted
+        by the player's in-game item visual order (read from `ITEMODR.DAT`).
+        `odrLoaded` is `false` if the `.dat` file could not be found.
+        Returns an empty `byContainer` map if no inventory snapshot exists.
+      responses:
+        "200":
+          description: Grouped and sorted inventory
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [odrLoaded, byContainer]
+                properties:
+                  odrLoaded:
+                    type: boolean
+                  logFile:
+                    type: string
+                    nullable: true
+                    description: Path to the inventory log file, or null if logging is disabled
+                  capturedAt:
+                    type: string
+                    format: date-time
+                  byContainer:
+                    type: object
+                    description: >
+                      Keys are container group names (e.g. "Bags", "Armory: Main-hand").
+                      Values are arrays of inventory entries sorted by visual position.
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: object
+                        required: [itemId, quantity, hq, location]
+                        properties:
+                          itemId:
+                            type: integer
+                          quantity:
+                            type: integer
+                          hq:
+                            type: boolean
+                          location:
+                            type: integer
+                            nullable: true
+                            description: 1-based visual position from ITEMODR.DAT, or null if not found
+                          name:
+                            type: string
+                            description: Item name from XIVAPI cache (only present if item was previously fetched)
+
   /compare:
     get:
       tags: [compare]
@@ -986,6 +1144,101 @@ components:
             type: string
           example:
             WAR: "bis_war_current_0"
+
+    # ---- Acquisition ---------------------------------------------------------
+
+    ItemCount:
+      type: object
+      required: [itemId, name, have, need]
+      properties:
+        itemId:
+          type: integer
+        name:
+          type: string
+        have:
+          type: integer
+        need:
+          type: integer
+
+    CofferStatus:
+      type: object
+      required: [coffer, available]
+      properties:
+        coffer:
+          $ref: "#/components/schemas/ItemCount"
+        available:
+          type: boolean
+
+    BookExchangeStatus:
+      type: object
+      required: [book, available]
+      properties:
+        book:
+          $ref: "#/components/schemas/ItemCount"
+        available:
+          type: boolean
+
+    UpgradeMaterialStatus:
+      type: object
+      required: [material, available, bookCost]
+      properties:
+        material:
+          $ref: "#/components/schemas/ItemCount"
+        available:
+          type: boolean
+        bookCost:
+          $ref: "#/components/schemas/BookExchangeStatus"
+
+    BaseItemStatus:
+      type: object
+      required: [baseItem, haveBase, haveBaseEquipped, tomes, canBuyWithTomes]
+      properties:
+        baseItem:
+          $ref: "#/components/schemas/ItemCount"
+        haveBase:
+          type: boolean
+        haveBaseEquipped:
+          type: boolean
+        tomes:
+          $ref: "#/components/schemas/ItemCount"
+        canBuyWithTomes:
+          type: boolean
+
+    UpgradePathStatus:
+      type: object
+      required: [upgradeItemId, base, material, available]
+      properties:
+        upgradeItemId:
+          type: integer
+        base:
+          $ref: "#/components/schemas/BaseItemStatus"
+        material:
+          $ref: "#/components/schemas/UpgradeMaterialStatus"
+        available:
+          type: boolean
+
+    SlotAcquisitionStatus:
+      type: object
+      required: [slot, bisItemId, coffer, books, upgrade, canAcquireNow]
+      properties:
+        slot:
+          type: string
+        bisItemId:
+          type: integer
+        coffer:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/CofferStatus"
+        books:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/BookExchangeStatus"
+        upgrade:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/UpgradePathStatus"
+        canAcquireNow:
+          type: boolean
 
     # ---- Shared --------------------------------------------------------------
 

@@ -1,5 +1,6 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { writeJsonAtomic } from '../util/atomic-write.ts';
 import type { BisCatalog, LocalBisEntry, RaidTier } from '../types.ts';
 import { normalizeXivgearUrl } from './xivgear.ts';
 
@@ -7,9 +8,6 @@ function catalogPath(projectRoot: string): string {
   return path.join(projectRoot, 'data', 'bis', 'catalog.json');
 }
 
-function catalogDir(projectRoot: string): string {
-  return path.join(projectRoot, 'data', 'bis');
-}
 
 /**
  * Derive a stable, human-readable ID from a xivgear URL and set index.
@@ -48,8 +46,7 @@ export async function loadCatalog(projectRoot: string): Promise<BisCatalog> {
 }
 
 export async function saveCatalog(projectRoot: string, catalog: BisCatalog): Promise<void> {
-  await mkdir(catalogDir(projectRoot), { recursive: true });
-  await writeFile(catalogPath(projectRoot), JSON.stringify(catalog, null, 2) + '\n', 'utf-8');
+  await writeJsonAtomic(catalogPath(projectRoot), JSON.stringify(catalog, null, 2) + '\n');
 }
 
 export function upsertSet(catalog: BisCatalog, entry: LocalBisEntry): BisCatalog {

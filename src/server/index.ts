@@ -52,7 +52,12 @@ export function setWindowControls(controls: WindowControls): void {
 }
 
 async function serveStatic(pathname: string, publicDir: string): Promise<Response> {
-  const filePath = path.join(publicDir, pathname === "/" ? "index.html" : pathname);
+  const requested = pathname === "/" ? "/index.html" : pathname;
+  const resolvedPublic = path.resolve(publicDir);
+  const filePath = path.resolve(resolvedPublic, "." + requested);
+  if (!filePath.startsWith(resolvedPublic + path.sep) && filePath !== resolvedPublic) {
+    return new Response("Not found", { status: 404 });
+  }
   const file = Bun.file(filePath);
   if (!(await file.exists())) return new Response("Not found", { status: 404 });
   return new Response(file);
@@ -60,14 +65,14 @@ async function serveStatic(pathname: string, publicDir: string): Promise<Respons
 
 const ROUTES = [windowRoute, pcapRoute, itemRoute, bisRoute, acquisitionRoute, debugRoute];
 
-export function startServer(
+export async function startServer(
   port = 3000,
   publicDir = path.join(import.meta.dir, "..", "..", "public"),
   projectRoot?: string,
-): ReturnType<typeof Bun.serve> {
+): Promise<ReturnType<typeof Bun.serve>> {
   if (projectRoot) PROJECT_ROOT = projectRoot;
 
-  void Promise.all([
+  await Promise.all([
     loadGearCache(PROJECT_ROOT).then(g => { if (g && !latestPcapGear) latestPcapGear = g; }),
     loadInventoryCache(PROJECT_ROOT).then(i => { if (i && !latestInventory) latestInventory = i; }),
   ]);
@@ -102,5 +107,5 @@ export function startServer(
 
 if (import.meta.main) {
   const port = Number(process.env["PORT"] ?? 3000);
-  startServer(port);
+  await startServer(port);
 }

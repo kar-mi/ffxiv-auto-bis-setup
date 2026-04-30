@@ -4,10 +4,16 @@ import type { ItemData } from "../xivapi/item-data.ts";
 const itemCache = new Map<number, Promise<ItemData>>();
 
 export function fetchItemData(itemId: number): Promise<ItemData> {
-  if (!itemCache.has(itemId)) {
-    itemCache.set(itemId, fetch(`${API_BASE}/item/${itemId}`).then(r => r.json() as Promise<ItemData>));
+  let pending = itemCache.get(itemId);
+  if (!pending) {
+    pending = fetch(`${API_BASE}/item/${itemId}`).then(r => {
+      if (!r.ok) throw new Error(`item ${itemId} failed (${r.status})`);
+      return r.json() as Promise<ItemData>;
+    });
+    pending.catch(() => itemCache.delete(itemId));
+    itemCache.set(itemId, pending);
   }
-  return itemCache.get(itemId)!;
+  return pending;
 }
 
 export async function fetchJson<T>(

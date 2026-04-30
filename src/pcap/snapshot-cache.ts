@@ -1,6 +1,7 @@
 import path from "path";
-import { writeFile, readFile, readdir, mkdir } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import type { GearSnapshot, InventorySnapshot } from "../types.ts";
+import { writeJsonAtomic } from "../util/atomic-write.ts";
 
 const CACHE_DIR = "data/cache";
 
@@ -18,9 +19,7 @@ export async function loadGearCache(projectRoot: string): Promise<GearSnapshot |
 }
 
 export async function saveGearCache(projectRoot: string, snapshot: GearSnapshot): Promise<void> {
-  const dir = cacheDir(projectRoot);
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, "gear.json"), JSON.stringify(snapshot));
+  await writeJsonAtomic(path.join(cacheDir(projectRoot), "gear.json"), snapshot);
 }
 
 export async function loadInventoryCache(projectRoot: string): Promise<InventorySnapshot | null> {
@@ -33,17 +32,13 @@ export async function loadInventoryCache(projectRoot: string): Promise<Inventory
 }
 
 export async function saveInventoryCache(projectRoot: string, snapshot: InventorySnapshot): Promise<void> {
-  const dir = cacheDir(projectRoot);
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, "inventory.json"), JSON.stringify(snapshot));
+  await writeJsonAtomic(path.join(cacheDir(projectRoot), "inventory.json"), snapshot);
 }
 
 // ---- Per-classId gear cache -------------------------------------------------
 
 export async function saveJobGearCache(projectRoot: string, classId: number, snapshot: GearSnapshot): Promise<void> {
-  const dir = cacheDir(projectRoot);
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, `gear-${classId}.json`), JSON.stringify(snapshot));
+  await writeJsonAtomic(path.join(cacheDir(projectRoot), `gear-${classId}.json`), snapshot);
 }
 
 export async function loadJobGearCache(projectRoot: string, classId: number): Promise<GearSnapshot | null> {

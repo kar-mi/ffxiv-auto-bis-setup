@@ -28,7 +28,7 @@ try {
 
 // Run the HTTP server in-process — we're already in Bun
 const projectRoot = findProjectRoot(import.meta.dir);
-startServer(SERVER_PORT, path.join(projectRoot, "public"), projectRoot);
+await startServer(SERVER_PORT, path.join(projectRoot, "public"), projectRoot);
 
 // ---------------------------------------------------------------------------
 // Window state persistence — saves position/size across restarts

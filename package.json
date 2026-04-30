@@ -10,7 +10,9 @@
     "build:css": "tailwindcss -i ./src/ui/styles.css -o ./public/styles.css --minify",
     "watch:css": "tailwindcss -i ./src/ui/styles.css -o ./public/styles.css --watch",
     "build:ui": "bun run build:css && bun build src/ui/main.tsx --outfile public/bundle.js --target browser",
-    "watch:ui": "bun build src/ui/main.tsx --outfile public/bundle.js --target browser --watch"
+    "build:ui:prod": "bun run build:css && bun build src/ui/main.tsx --outfile public/bundle.js --target browser --minify",
+    "watch:ui": "bun build src/ui/main.tsx --outfile public/bundle.js --target browser --watch",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest",

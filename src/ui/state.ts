@@ -43,6 +43,9 @@ export const statusMsg          = signal<string | null>(null);
 export const statusIsError      = signal(false);
 
 
+export interface MateriaStatEntry { stat: string; value: number }
+export const materiaStatsMap    = signal<Map<number, MateriaStatEntry>>(new Map());
+
 export const mergedItemDataMap = computed(
   () => new Map([...currentItemDataMap.value, ...bisItemDataMap.value]),
 );

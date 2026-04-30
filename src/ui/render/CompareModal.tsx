@@ -4,7 +4,7 @@ import type { ItemData } from "../../xivapi/item-data.ts";
 import { SLOT_LABELS } from "../constants.ts";
 import {
   selectedSlot, comparisonData, needsData, currentBisSet,
-  currentSnapshot, acquisitionData, mergedItemDataMap,
+  currentSnapshot, acquisitionData, mergedItemDataMap, materiaStatsMap,
 } from "../state.ts";
 import { Corners } from "../components/Corners.tsx";
 import { MateriaCircles } from "../components/MateriaCircles.tsx";
@@ -94,6 +94,12 @@ function AdviceBlock({ label, ready, children }: {
   );
 }
 
+function materiaLabel(id: number, itemDataMap: Map<number, ItemData>): string {
+  const name = itemDataMap.get(id)?.name ?? `Materia #${id}`;
+  const stat = materiaStatsMap.value.get(id);
+  return stat ? `${name} (${stat.stat} ${stat.value})` : name;
+}
+
 function MateriaAdvice({ slotComp, itemDataMap }: { slotComp: SlotComparison; itemDataMap: Map<number, ItemData> }) {
   const change   = needsData.value?.materiaChanges.find(c => c.slot === slotComp.slot);
   const toAdd    = change?.toAdd ?? [];
@@ -109,7 +115,7 @@ function MateriaAdvice({ slotComp, itemDataMap }: { slotComp: SlotComparison; it
         <div>
           <p class="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-1">Remove</p>
           {toRemove.map((id, i) => (
-            <p key={i} class="text-xs text-red-400">&minus; {itemDataMap.get(id)?.name ?? `Materia #${id}`}</p>
+            <p key={i} class="text-xs text-red-400">&minus; {materiaLabel(id, itemDataMap)}</p>
           ))}
         </div>
       )}
@@ -117,7 +123,7 @@ function MateriaAdvice({ slotComp, itemDataMap }: { slotComp: SlotComparison; it
         <div class={toRemove.length > 0 ? "mt-2" : ""}>
           <p class="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-1">Add</p>
           {toAdd.map((id, i) => (
-            <p key={i} class="text-xs text-green-400">+ {itemDataMap.get(id)?.name ?? `Materia #${id}`}</p>
+            <p key={i} class="text-xs text-green-400">+ {materiaLabel(id, itemDataMap)}</p>
           ))}
         </div>
       )}

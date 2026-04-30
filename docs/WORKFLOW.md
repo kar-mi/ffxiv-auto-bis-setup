@@ -383,7 +383,3 @@ interface LocalBisEntry {
 ---
 
 ## What's Not Yet Implemented
-
-| Feature | Notes |
-|---------|-------|
-| Tailwind build step | Replace CDN Tailwind with Tailwind CLI / PostCSS; see `docs/TODO.md` |

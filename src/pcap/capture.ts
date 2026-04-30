@@ -140,7 +140,13 @@ export class GearPacketCapture extends EventEmitter {
     }
 
     if (msg.type === 'playerSetup') {
-      this.currentCharacterId = parsed['contentId'] as number | undefined;
+      // pcap-ffxiv types contentId as BigInt. JSON.stringify can't serialize
+      // BigInt, so coerce to Number here — real contentIds fit in Number safely.
+      const cid = parsed['contentId'];
+      this.currentCharacterId =
+        typeof cid === 'bigint' ? Number(cid) :
+        typeof cid === 'number' ? cid :
+        undefined;
     }
 
     // ---- Inventory packet handling (bags 0–3 and currency/crystals 2000) -----

@@ -241,7 +241,6 @@ function BisTabPanel() {
   return (
     <div class={isActive ? "max-w-3xl mx-auto px-4 py-6" : "hidden"}>
       <h2 class="font-cinzel text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4">BIS Sets</h2>
-      <SnapshotStatus />
 
       <div class="flex gap-0 border-b border-ffxiv-border mb-4">
         {MANAGE_TABS.map(({ id, label }) => {

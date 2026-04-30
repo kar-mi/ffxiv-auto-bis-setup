@@ -158,8 +158,11 @@ src/
 │   ├── loader.ts            — loadGearAcquisitionMap(projectRoot)
 │   │                          reads raidinfo/index.json → raidinfo/<tier>/gear-acquisition.json
 │   │                          process-lifetime cache (invalidate by restarting)
-│   └── compute.ts           — computeAcquisition(needs, map, inventory, upgradeBisIds)
-│                              buildCounts(inventory) → Map<itemId, quantity>
+│   ├── compute.ts           — computeAcquisition(needs, map, inventory, upgradeBisIds)
+│   │                          buildCounts(inventory) → Map<itemId, quantity>
+│   └── upgrade-detection.ts — buildUpgradeBisIds(needs, bis, acquisitionMap, lookup?)
+│                              getBaseItemId(bisItemId, upgradeOffset) → number
+│                              confirmUpgradeMatch(baseItemId, baseILevel, lookup?) → Promise<boolean>
 │
 ├── bis/
 │   ├── balance.ts           — fetchBisLinks(role, job)

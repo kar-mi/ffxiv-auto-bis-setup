@@ -11,30 +11,7 @@ import {
 } from '../../bis/local-store.ts';
 import { loadGearAcquisitionMap } from '../../acquisition/loader.ts';
 import { computeAcquisition } from '../../acquisition/compute.ts';
-import { fetchItemData } from '../../xivapi/item-data.ts';
-
-async function buildUpgradeBisIds(
-  gearNeeds: ReturnType<typeof computeNeeds>,
-  bisSet: Awaited<ReturnType<typeof getBisSet>>,
-  acquisitionMap: Awaited<ReturnType<typeof loadGearAcquisitionMap>>,
-): Promise<Set<number>> {
-  const upgradeBisIds = new Set<number>();
-  await Promise.all(gearNeeds.itemNeeds.map(async need => {
-    const bisItem = bisSet.items[need.slot];
-    if (bisItem?.itemLevel !== undefined) {
-      if (acquisitionMap.upgradeILevel && bisItem.itemLevel === acquisitionMap.upgradeILevel) {
-        upgradeBisIds.add(need.bisItemId);
-      }
-    } else {
-      const baseId = need.bisItemId - acquisitionMap.upgradeOffset;
-      if (baseId > 0) {
-        const data = await fetchItemData(baseId);
-        if (data.itemLevel === acquisitionMap.baseILevel) upgradeBisIds.add(need.bisItemId);
-      }
-    }
-  }));
-  return upgradeBisIds;
-}
+import { buildUpgradeBisIds } from '../../acquisition/upgrade-detection.ts';
 
 export async function tryHandle(req: Request, ctx: ServerCtx): Promise<Response | null> {
   const { pathname } = new URL(req.url);

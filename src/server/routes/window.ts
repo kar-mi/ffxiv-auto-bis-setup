@@ -20,7 +20,13 @@ export async function tryHandle(req: Request, ctx: ServerCtx): Promise<Response 
     return json(ctx.windowControls.getFrame());
   }
   if (pathname === "/window/setFrame" && req.method === "POST") {
-    const { x, y, width, height } = (await req.json()) as { x: number; y: number; width: number; height: number };
+    const body = (await req.json()) as Partial<Record<"x" | "y" | "width" | "height", unknown>>;
+    const nums = ["x", "y", "width", "height"] as const;
+    if (nums.some(k => typeof body[k] !== "number" || !Number.isFinite(body[k] as number))) {
+      return json({ error: "x, y, width, height must be finite numbers" }, 400);
+    }
+    const { x, y, width, height } = body as Record<typeof nums[number], number>;
+    if (width <= 0 || height <= 0) return json({ error: "width and height must be positive" }, 400);
     ctx.windowControls.setFrame(x, y, width, height);
     return json({ ok: true });
   }

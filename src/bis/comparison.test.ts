@@ -49,4 +49,32 @@ describe("compareGear", () => {
     expect(slot.status).toBe("wrong-materia");
     expect(result.wrongMateriaCount).toBe(1);
   });
+
+  test("BIS has item, snapshot slot is absent → missing", () => {
+    const result = compareGear(
+      makeSnapshot({}),
+      makeBis({ mainHand: { itemId: 100, materias: [] } }),
+    );
+    const slot = result.slots.find(s => s.slot === "mainHand")!;
+    expect(slot.status).toBe("missing");
+    expect(result.missingCount).toBe(1);
+  });
+
+  test("multi-slot mixed: one match, one wrong-item, one missing", () => {
+    const result = compareGear(
+      makeSnapshot({
+        mainHand: { itemId: 100, hq: false, materias: [], materiaSlots: 0, canOvermeld: false },
+        head:     { itemId: 999, hq: false, materias: [], materiaSlots: 0, canOvermeld: false },
+      }),
+      makeBis({
+        mainHand: { itemId: 100, materias: [] },
+        head:     { itemId: 200, materias: [] },
+        chest:    { itemId: 300, materias: [] },
+      }),
+    );
+    expect(result.matchCount).toBe(1);
+    expect(result.wrongItemCount).toBe(1);
+    expect(result.missingCount).toBe(1);
+    expect(result.wrongMateriaCount).toBe(0);
+  });
 });

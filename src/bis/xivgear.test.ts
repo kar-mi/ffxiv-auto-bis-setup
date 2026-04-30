@@ -21,4 +21,9 @@ describe("normalizeXivgearUrl", () => {
     const url = "https://xivgear.app/?page=bis|war|current&selectedIndex=1";
     expect(normalizeXivgearUrl(url)).toBe(url);
   });
+
+  test("non-xivgear domain passes through unchanged", () => {
+    const url = "https://example.com/foo";
+    expect(normalizeXivgearUrl(url)).toBe(url);
+  });
 });

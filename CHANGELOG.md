@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 This project follows a lightweight [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) style. Release tags use `vMAJOR.MINOR.PATCH` and should match `package.json`.
 
-## [0.2.1] - Unreleased
+## [0.2.2] - 2026-05-01
 
 ### Added
 - Pull request CI for type-checking and the Bun test suite.

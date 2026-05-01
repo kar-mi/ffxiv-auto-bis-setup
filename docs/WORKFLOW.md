@@ -8,6 +8,8 @@ The project has two ways to run:
 |------|-------------|---------|
 | Standalone HTTP server | `src/server/index.ts` | `bun run start` |
 | Electrobun desktop app | `src/desktop/index.ts` | `bun run desktop` |
+| Stable desktop payload | `src/desktop/index.ts` | `bun run desktop:build:stable` |
+| Windows portable zip | `scripts/package-portable.ts` | `bun run package:portable` |
 
 Both modes start the same HTTP server. The desktop mode additionally manages the packet capture child process.
 
@@ -39,8 +41,9 @@ src/pcap/host.ts  (standalone child process — stdout = newline-delimited JSON)
         │  (stdout pipe)
         ▼
 src/desktop/index.ts  (parent process — Electrobun desktop entry)
-  - builds pcap/host.ts → dist/pcap-host.cjs  (Bun build, CJS, Node target)
-  - spawns `node dist/pcap-host.cjs`
+  - uses prebuilt dist/pcap-host.cjs when present, otherwise builds pcap/host.ts
+    → dist/pcap-host.cjs  (Bun build, CJS, Node target)
+  - spawns bundled runtime/node/node.exe when present, otherwise `node`
   - reads newline-delimited JSON from stdout
   - on 'gearSnapshot':     POST /pcap/gear      → HTTP server
   - on 'inventorySnapshot': POST /pcap/inventory → HTTP server
@@ -287,13 +290,37 @@ src/
 1. `bun run desktop` → Electrobun launches `src/desktop/index.ts`
 2. `startServer(3000)` starts the HTTP server in-process
 3. A `BrowserWindow` opens pointing to `http://localhost:3000`
-4. `pcap/host.ts` is compiled to `dist/pcap-host.cjs` via `bun build`
-5. `node dist/pcap-host.cjs` is spawned as a child process
+4. If `dist/pcap-host.cjs` is missing, `pcap/host.ts` is compiled to it via `bun build`
+5. `dist/pcap-host.cjs` is spawned as a child process under bundled `runtime/node/node.exe` when present, otherwise `node`
 6. The child process initialises `@ffxiv-teamcraft/pcap-ffxiv` and emits `{ type: "started" }` on success
 7. As the game sends equipment packets, `GearPacketCapture` accumulates `itemInfo` slots and flushes on `containerInfo`
 8. Each `GearSnapshot` is POSTed to `http://localhost:3000/pcap/gear` and stored in `latestPcapGear`
 9. Each `InventorySnapshot` is POSTed to `http://localhost:3000/pcap/inventory` and stored in `latestInventory`
 10. The UI reads `/pcap/gear` and `/pcap/inventory` to drive comparison and acquisition views
+
+---
+
+## Portable Packaging
+
+`bun run package:portable` creates `artifacts/FFXIVGearSetup-portable-win-x64.zip`.
+
+The script:
+
+1. Builds production UI assets (`public/bundle.js`, `public/styles.css`).
+2. Builds `dist/pcap-host.cjs` for Node with `@ffxiv-teamcraft/pcap-ffxiv` external.
+3. Runs the stable Electrobun build.
+4. Extracts the stable Electrobun payload into a portable staging folder.
+5. Adds runtime files under `Resources/app/`: `public/`, `raidinfo/`, `data/materias.json`,
+   `dist/pcap-host.cjs`, a minimal `package.json`, the native capture dependencies, and
+   `runtime/node/node.exe`.
+6. Flattens the extracted Electrobun payload into the portable root.
+7. Builds a top-level `FFXIVAutoBIS.exe` launcher with `scripts/build-portable-launcher.ps1`.
+   The launcher starts `bin/launcher.exe` with `bin/` as the working directory, matching
+   Electrobun's runtime expectations without requiring users to run a command script.
+8. Adds `README.txt` with launch instructions and the generated data/config file locations.
+
+The portable app writes runtime data under its own `Resources/app/data/` tree, so it should be
+unzipped to a user-writable location.
 
 ---
 

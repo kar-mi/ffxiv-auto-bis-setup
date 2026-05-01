@@ -6,6 +6,8 @@
     "start": "bun run src/server/index.ts",
     "desktop": "electrobun dev",
     "desktop:build": "electrobun build --env=canary",
+    "desktop:build:stable": "electrobun build --env=stable",
+    "package:portable": "bun run scripts/package-portable.ts",
     "build": "bun run build:ui",
     "build:css": "tailwindcss -i ./src/ui/styles.css -o ./public/styles.css --minify",
     "watch:css": "tailwindcss -i ./src/ui/styles.css -o ./public/styles.css --watch",

@@ -46,6 +46,7 @@ export async function tryHandle(req: Request, ctx: ServerCtx): Promise<Response 
     }
     for (const m of acquisitionMap.upgradeMaterials) { if (m.itemId !== 0) allIds.add(m.itemId); }
     for (const b of acquisitionMap.books) { if (b.itemId !== 0) allIds.add(b.itemId); }
+    for (const item of acquisitionMap.alliance_trade_in ?? []) { if (item.itemId !== 0) allIds.add(item.itemId); }
 
     const itemDataMap = new Map(
       await Promise.all([...allIds].map(async id => [id, await fetchItemData(id)] as const))
@@ -72,6 +73,11 @@ export async function tryHandle(req: Request, ctx: ServerCtx): Promise<Response 
     const materials = acquisitionMap.upgradeMaterials.map(m => {
       const { name, icon } = resolve(m.itemId, m.name);
       return { itemId: m.itemId, name, icon, have: have(m.itemId) };
+    });
+
+    const allianceTradeIn = (acquisitionMap.alliance_trade_in ?? []).map(item => {
+      const { name, icon } = resolve(item.itemId, item.name);
+      return { itemId: item.itemId, name, icon, have: have(item.itemId) };
     });
 
     const bookSeen = new Set<number>();
@@ -139,7 +145,15 @@ export async function tryHandle(req: Request, ctx: ServerCtx): Promise<Response 
       }
     }
 
-    return json({ currency, coffers, materials, ...(materia ? { materia } : {}), books, ...(baseGear ? { baseGear } : {}) });
+    return json({
+      currency,
+      coffers,
+      materials,
+      ...(allianceTradeIn.length > 0 ? { allianceTradeIn } : {}),
+      ...(materia ? { materia } : {}),
+      books,
+      ...(baseGear ? { baseGear } : {}),
+    });
   }
 
   return null;

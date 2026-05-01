@@ -5,6 +5,11 @@ export interface BookDef {
   name: string;
 }
 
+export interface AllianceTradeInDef {
+  itemId: number;
+  name: string;
+}
+
 export interface UpgradeMaterialDef {
   key: string;
   itemId: number;
@@ -41,6 +46,8 @@ export interface GearAcquisitionMap {
   /** iLevel of the upgraded tome piece (e.g. 790). Used with BisItem.itemLevel for fast upgrade detection. */
   upgradeILevel?: number;
   books: BookDef[];
+  /** Items that can be traded as a set for applicable upgrade materials. */
+  alliance_trade_in?: AllianceTradeInDef[];
   upgradeMaterials: UpgradeMaterialDef[];
   /** Keyed by SlotName string. Missing slots are unknown/not tracked. */
   slots: Partial<Record<string, SlotAcquisition>>;
@@ -66,11 +73,19 @@ export interface BookExchangeStatus {
   available: boolean;
 }
 
+export interface AllianceTradeInStatus {
+  items: ItemCount[];
+  available: boolean;
+}
+
 export interface UpgradeMaterialStatus {
   material: ItemCount;
+  /** True when the actual upgrade material item is already in inventory. */
   available: boolean;
   /** How to get this material via book exchange if not already in bags. */
   bookCost: BookExchangeStatus;
+  /** Alternate alliance-raid token trade-in, currently used for Twine and Glaze. */
+  allianceTradeIn?: AllianceTradeInStatus | null;
 }
 
 export interface BaseItemStatus {

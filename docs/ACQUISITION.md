@@ -19,6 +19,7 @@ Every BIS slot will use one of two item variants. The BIS set (from xivgear.app)
 - Starts as **tome gear** (ilvl 780), purchased with **Allagan Tomestones of Aesthetics**.
 - Upgraded to ilvl 790 by trading the 780 piece + one **upgrade material** at the vendor.
 - The upgrade materials are obtained by trading **books** (separate exchange from buying raid gear).
+- Twine and Glaze can also be obtained through the alliance-raid trade-in: one of each item in `alliance_trade_in`.
 - **Cannot be acquired from a coffer.** If the BIS item is the upgraded tome variant, coffers and direct book purchases don't apply.
 
 ---
@@ -36,15 +37,23 @@ Books are **not** used to buy tome gear — that's strictly a tomestone purchase
 
 ---
 
+## Alliance Trade-In
+
+The active tier can define an `alliance_trade_in` list for upgrade-material exchanges. For AAC Heavyweight, one each of **Ordelle Coin**, **Montiont Coin**, and **Ranperre Coin** can be traded for either **Thundersteeped Twine** or **Thundersteeping Glaze**.
+
+This is an alternate material path only. It does not apply to **Thundersteeped Solvent**, and it does not replace the direct material or book exchange checks.
+
+---
+
 ## Upgrade Materials
 
 Three materials are used to upgrade 780 tome gear to 790. Each applies to a specific category of slots:
 
-| Material | Slots | Books needed |
-|---|---|---|
-| Thundersteeped Twine | Head, Chest, Gloves, Legs, Feet | 4 × Edition 4 |
-| Thundersteeping Glaze | Earrings, Necklace, Bracelet, Ring | 3 × Edition 3 |
-| Thundersteeped Solvent | Main Hand (weapon) | 4 × Edition 4 |
+| Material | Slots | Book path | Alliance trade-in |
+|---|---|---|---|
+| Thundersteeped Twine | Head, Chest, Gloves, Legs, Feet | `upgradeMaterials[*].bookCount` × `books[bookIndex]` | 1 × each `alliance_trade_in` item |
+| Thundersteeping Glaze | Earrings, Necklace, Bracelet, Ring | `upgradeMaterials[*].bookCount` × `books[bookIndex]` | 1 × each `alliance_trade_in` item |
+| Thundersteeped Solvent | Main Hand (weapon) | `upgradeMaterials[*].bookCount` × `books[bookIndex]` | Not applicable |
 
 ---
 
@@ -75,6 +84,7 @@ For each slot where the player's equipped item does not match BIS (`computeAcqui
    - Base item ID = `bisItemId - upgradeOffset` (the 780 tome piece)
    - Check bags/armory for the base item; if absent, check tomestone count vs `tomeCost`
    - Check bags for the upgrade material; if absent, check book count vs material's `bookCount`
+   - For Twine/Glaze, also check whether the player has one of each item in `alliance_trade_in`
 
 3. **Raid path** (non-upgrade slots):
    - Check bags for the coffer item (`cofferItemId`)
@@ -98,6 +108,11 @@ For each slot where the player's equipped item does not match BIS (`computeAcqui
   "books": [
     { "itemId": 49760, "name": "AAC Illustrated: HW Edition 1" },
     // index 0 = Edition 1, index 1 = Edition 2, ...
+  ],
+  "alliance_trade_in": [
+    { "itemId": 44549, "name": "Ordelle Coin" },
+    { "itemId": 46978, "name": "Montiont Coin" },
+    { "itemId": 50888, "name": "Ranperre Coin" }
   ],
   "upgradeMaterials": [
     {

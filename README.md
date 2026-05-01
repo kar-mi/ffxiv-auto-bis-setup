@@ -87,7 +87,7 @@ src/server/index.ts          (Bun HTTP server — serves UI + API)
 | `GET` | `/compare?url=&set=` | Gear vs BIS comparison |
 | `GET` | `/needs?url=&set=` | Items/materia still needed |
 | `GET` | `/acquisition?url=` | Per-slot acquisition paths cross-referenced against inventory |
-| `GET` | `/upgrade-items` | Upgrade materials for the active raid tier |
+| `GET` | `/upgrade-items` | Upgrade materials and trade-in items for the active raid tier |
 | `GET/POST` | `/bis/catalog` | BIS catalog management |
 | `POST` | `/bis/catalog/sets` | Fetch + save a BIS set |
 | `PATCH/DELETE` | `/bis/catalog/sets/:id` | Update or remove a catalog entry |

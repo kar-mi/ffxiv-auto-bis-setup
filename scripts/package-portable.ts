@@ -23,6 +23,8 @@ const runtimeNodeDir = path.join(appRoot, "runtime", "node");
 const portableZip = path.join(artifactsDir, `${artifactBaseName}.zip`);
 const portableZipTmp = path.join(artifactsDir, `${artifactBaseName}.tmp.zip`);
 const launcherExeName = "FFXIVAutoBIS.exe";
+const appIconPath = path.join(projectRoot, "assets", "ffxiv-auto-bis.ico");
+const rceditExePath = path.join(projectRoot, "node_modules", "rcedit", "bin", "rcedit-x64.exe");
 
 function run(cmd: string, args: string[]): void {
   console.log(`> ${[cmd, ...args].join(" ")}`);
@@ -77,6 +79,12 @@ async function flattenElectrobunPayload(): Promise<void> {
     await rename(path.join(extractedPayloadRoot, entry), path.join(stagingDir, entry));
   }
   await rm(extractedPayloadRoot, { recursive: true, force: true });
+}
+
+function embedIcon(exePath: string): void {
+  if (!existsSync(appIconPath)) throw new Error(`Missing app icon: ${appIconPath}`);
+  if (!existsSync(rceditExePath)) throw new Error(`Missing rcedit executable: ${rceditExePath}`);
+  run(rceditExePath, [exePath, "--set-icon", appIconPath]);
 }
 
 function findNodeExe(): string {
@@ -179,6 +187,7 @@ async function seedTopLevelLaunchers(): Promise<void> {
       "Keep the extracted files together in a user-writable location; saved settings and live capture data write back into this folder.",
       "",
       "Generated files:",
+      "- App settings: Resources\\app\\data\\settings.json",
       "- Window size/position: Resources\\app\\data\\window-state.json",
       "- Saved BIS sets/preferences: Resources\\app\\data\\bis\\catalog.json",
       "- Gear and inventory cache: Resources\\app\\data\\cache\\",
@@ -208,6 +217,9 @@ async function main(): Promise<void> {
 
   run("tar", ["-xf", findElectrobunPayload(), "-C", stagingDir]);
   await flattenElectrobunPayload();
+  await copyFile(appIconPath, path.join(portableRoot, "Resources", "app.ico"));
+  embedIcon(path.join(portableRoot, "bin", "launcher.exe"));
+  embedIcon(path.join(portableRoot, "bin", "bun.exe"));
   await seedRuntimeFiles();
   await seedTopLevelLaunchers();
 

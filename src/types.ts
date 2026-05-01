@@ -82,7 +82,8 @@ export interface BisLink {
 
 // ---- BIS catalog types ------------------------------------------------------
 
-export type RaidTier = 'aac_lw' | 'aac_mw' | 'aac_hw' | 'ultimate' | 'criterion' | 'other';
+export const RAID_TIERS = ['aac_lw', 'aac_mw', 'aac_hw', 'ultimate', 'criterion', 'other'] as const;
+export type RaidTier = typeof RAID_TIERS[number];
 
 export const RAID_TIER_LABELS: Record<RaidTier, string> = {
   aac_lw:    'AAC Light-heavyweight (M1\u2013M4)',
@@ -110,6 +111,26 @@ export interface BisCatalog {
   /** Keyed by uppercase job abbreviation (e.g. `"WAR"`). Value is `LocalBisEntry.id`. */
   preferences: Record<string, string>;
 }
+
+// ---- App settings ----------------------------------------------------------
+
+export const APP_DEFAULT_TABS = ['gear', 'bis', 'upgrades', 'acquisition'] as const;
+export type AppDefaultTab = typeof APP_DEFAULT_TABS[number];
+
+export const APP_DEFAULT_TAB_LABELS: Record<AppDefaultTab, string> = {
+  gear: 'Gear',
+  bis: 'BIS Sets',
+  upgrades: 'Items',
+  acquisition: 'Upgrades',
+};
+
+export interface AppSettings {
+  defaultTab: AppDefaultTab;
+}
+
+export const DEFAULT_APP_SETTINGS: AppSettings = {
+  defaultTab: 'gear',
+};
 
 // ---- Inventory types --------------------------------------------------------
 
@@ -180,4 +201,3 @@ export interface GearsetComparison {
   wrongMateriaCount: number;
   missingCount: number;
 }
-

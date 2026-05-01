@@ -108,6 +108,35 @@ function applyRoundedWindowCorners(): void {
   }
 }
 
+function findAppIconPath(): string | null {
+  const candidates = [
+    // Portable/stable Electrobun builds copy build.win.icon here.
+    path.resolve(projectRoot, "..", "app.ico"),
+    // Development runs use the source tree directly.
+    path.join(projectRoot, "assets", "ffxiv-auto-bis.ico"),
+  ];
+  return candidates.find(candidate => existsSync(candidate)) ?? null;
+}
+
+function applyWindowIcon(): void {
+  if (process.platform !== "win32") return;
+  const iconPath = findAppIconPath();
+  if (!iconPath) return;
+
+  try {
+    const native = dlopen("libNativeWrapper.dll", {
+      setWindowIcon: {
+        args: [FFIType.ptr, FFIType.cstring],
+        returns: FFIType.void,
+      },
+    });
+    const iconPathBytes = Buffer.from(`${iconPath}\0`, "utf8");
+    native.symbols.setWindowIcon(win.ptr, ptr(iconPathBytes));
+  } catch (e) {
+    console.warn("[window] Could not set native window icon:", e);
+  }
+}
+
 const savedState = loadWindowState();
 
 // Open the desktop window
@@ -118,6 +147,7 @@ const win = new BrowserWindow({
   titleBarStyle: "hidden",
   transparent: false,
 });
+applyWindowIcon();
 applyRoundedWindowCorners();
 
 // Persist window position/size on move or resize (debounced).

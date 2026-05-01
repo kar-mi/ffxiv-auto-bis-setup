@@ -1,11 +1,38 @@
 import { signal } from "@preact/signals";
+import {
+  APP_DEFAULT_TAB_LABELS,
+  APP_DEFAULT_TABS,
+  type AppSettings,
+  type AppDefaultTab,
+} from "../../types.ts";
+import { appSettings, saveSettings } from "../settings.ts";
 
 export const settingsOpen = signal(false);
+const settingsSaving = signal(false);
+const settingsStatus = signal("");
+
+async function updateSettings(patch: Partial<AppSettings>): Promise<void> {
+  const previous = appSettings.value;
+  const next = { ...previous, ...patch };
+  appSettings.value = next;
+  settingsSaving.value = true;
+  settingsStatus.value = "";
+  try {
+    await saveSettings(next);
+    settingsStatus.value = "Saved";
+  } catch (err) {
+    appSettings.value = previous;
+    settingsStatus.value = `Could not save: ${(err as Error)?.message ?? String(err)}`;
+  } finally {
+    settingsSaving.value = false;
+  }
+}
 
 export function SettingsModal() {
   if (!settingsOpen.value) return null;
 
   const close = (): void => { settingsOpen.value = false; };
+  const settings = appSettings.value;
 
   return (
     <div
@@ -20,7 +47,27 @@ export function SettingsModal() {
           &#x2715;
         </button>
         <h2 class="font-cinzel text-sm font-semibold text-ffxiv-gold uppercase tracking-wide mb-4">Settings</h2>
-        <p class="text-xs text-gray-500 italic">No settings yet — more options coming soon.</p>
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] text-gray-500 uppercase tracking-wide">Open On Launch</label>
+            <select
+              value={settings.defaultTab}
+              class="bg-ffxiv-dark border border-ffxiv-border text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-ffxiv-gold"
+              onChange={(e) => {
+                const defaultTab = (e.currentTarget as HTMLSelectElement).value as AppDefaultTab;
+                void updateSettings({ defaultTab });
+              }}
+            >
+              {APP_DEFAULT_TABS.map(tab => (
+                <option key={tab} value={tab}>{APP_DEFAULT_TAB_LABELS[tab]}</option>
+              ))}
+            </select>
+          </div>
+
+          <p class={`text-xs ${settingsStatus.value.startsWith("Could not") ? "text-red-400" : "text-gray-500"}`}>
+            {settingsSaving.value ? "Saving..." : settingsStatus.value || "Changes are saved automatically."}
+          </p>
+        </div>
       </div>
     </div>
   );

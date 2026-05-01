@@ -14,6 +14,7 @@ import * as itemRoute       from "./routes/item.ts";
 import * as bisRoute        from "./routes/bis.ts";
 import * as acquisitionRoute from "./routes/acquisition.ts";
 import * as debugRoute      from "./routes/debug.ts";
+import * as settingsRoute   from "./routes/settings.ts";
 
 let PROJECT_ROOT = path.join(import.meta.dir, "..", "..");
 
@@ -85,7 +86,7 @@ async function serveStatic(pathname: string, publicDir: string): Promise<Respons
   return new Response(file);
 }
 
-const ROUTES = [windowRoute, pcapRoute, itemRoute, bisRoute, acquisitionRoute, debugRoute];
+const ROUTES = [windowRoute, pcapRoute, itemRoute, bisRoute, acquisitionRoute, debugRoute, settingsRoute];
 
 export async function startServer(
   port = 3000,

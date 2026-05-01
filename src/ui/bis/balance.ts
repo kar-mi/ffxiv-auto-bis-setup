@@ -59,7 +59,7 @@ export async function loadBalanceLinks(): Promise<void> {
 export async function addBalanceLink(url: string): Promise<void> {
   patchLink(url, { adding: true, addError: null });
   try {
-    await addSetFromUrl(url, balanceTier.value, false);
+    await addSetFromUrl(url, balanceTier.value, true);
     patchLink(url, { saved: true, adding: false });
   } catch (err) {
     logger.error(err, "[balance] add failed");

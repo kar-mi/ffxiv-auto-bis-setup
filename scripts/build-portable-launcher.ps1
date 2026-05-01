@@ -1,9 +1,31 @@
 param(
   [Parameter(Mandatory = $true)]
-  [string]$OutputPath
+  [string]$OutputPath,
+
+  [string]$IconPath = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($IconPath)) {
+  $IconPath = Join-Path $PSScriptRoot "..\assets\ffxiv-auto-bis.ico"
+}
+
+function Find-CSharpCompiler {
+  $command = Get-Command "csc.exe" -ErrorAction SilentlyContinue
+  if ($command -ne $null) { return $command.Source }
+
+  $candidates = @(
+    (Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"),
+    (Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe")
+  )
+
+  foreach ($candidate in $candidates) {
+    if (Test-Path -LiteralPath $candidate) { return $candidate }
+  }
+
+  throw "Could not find csc.exe to build the portable launcher."
+}
 
 $source = @'
 using System;
@@ -55,9 +77,24 @@ internal static class Program
 }
 '@
 
+$sourcePath = Join-Path ([System.IO.Path]::GetTempPath()) ("ffxiv-auto-bis-launcher-" + [System.Guid]::NewGuid().ToString("N") + ".cs")
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
 Remove-Item -LiteralPath $OutputPath -Force -ErrorAction SilentlyContinue
-Add-Type `
-  -TypeDefinition $source `
-  -ReferencedAssemblies "System.Windows.Forms" `
-  -OutputAssembly $OutputPath `
-  -OutputType WindowsApplication
+try {
+  $resolvedIconPath = (Resolve-Path -LiteralPath $IconPath -ErrorAction Stop).Path
+  Set-Content -LiteralPath $sourcePath -Value $source -Encoding UTF8
+  $csc = Find-CSharpCompiler
+  & $csc `
+    "/nologo" `
+    "/target:winexe" `
+    "/out:$OutputPath" `
+    "/win32icon:$resolvedIconPath" `
+    "/reference:System.Windows.Forms.dll" `
+    $sourcePath
+  if ($LASTEXITCODE -ne 0) {
+    throw "csc.exe failed with exit code $LASTEXITCODE."
+  }
+}
+finally {
+  Remove-Item -LiteralPath $sourcePath -Force -ErrorAction SilentlyContinue
+}

@@ -313,8 +313,11 @@ The script:
 5. Adds runtime files under `Resources/app/`: `public/`, `raidinfo/`, `data/materias.json`,
    `dist/pcap-host.cjs`, a minimal `package.json`, the native capture dependencies, and
    `runtime/node/node.exe`.
-6. Adds top-level `Run FFXIV Gear Setup.cmd` and `README.txt` files beside the `FFXIVGearSetup/`
-   folder for easier launching after extraction.
+6. Flattens the extracted Electrobun payload into the portable root.
+7. Builds a top-level `FFXIVAutoBIS.exe` launcher with `scripts/build-portable-launcher.ps1`.
+   The launcher starts `bin/launcher.exe` with `bin/` as the working directory, matching
+   Electrobun's runtime expectations without requiring users to run a command script.
+8. Adds `README.txt` with launch instructions and the generated data/config file locations.
 
 The portable app writes runtime data under its own `Resources/app/data/` tree, so it should be
 unzipped to a user-writable location.

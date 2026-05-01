@@ -1,17 +1,18 @@
-import { existsSync } from "node:fs";
-import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { existsSync, statSync } from "node:fs";
+import { cp, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const projectRoot = path.resolve(import.meta.dir, "..");
 const outDir = path.join(projectRoot, "out");
 const stagingDir = path.join(outDir, "portable-staging");
-const portableRoot = path.join(stagingDir, "FFXIVGearSetup");
+const extractedPayloadRoot = path.join(stagingDir, "FFXIVGearSetup");
+const portableRoot = stagingDir;
 const appRoot = path.join(portableRoot, "Resources", "app");
 const artifactsDir = path.join(projectRoot, "artifacts");
 const runtimeNodeDir = path.join(appRoot, "runtime", "node");
 const portableZip = path.join(artifactsDir, "FFXIVGearSetup-portable-win-x64.zip");
-const portableZipTmp = path.join(artifactsDir, "FFXIVGearSetup-portable-win-x64.zip.tmp");
-const launchScriptName = "Run FFXIV Gear Setup.cmd";
+const portableZipTmp = path.join(artifactsDir, "FFXIVGearSetup-portable-win-x64.tmp.zip");
+const launcherExeName = "FFXIVAutoBIS.exe";
 
 function run(cmd: string, args: string[]): void {
   console.log(`> ${[cmd, ...args].join(" ")}`);
@@ -25,6 +26,27 @@ function run(cmd: string, args: string[]): void {
   }
 }
 
+function runElectrobunBuild(): void {
+  const startedAt = Date.now();
+  console.log("> electrobun build --env=stable");
+  const result = Bun.spawnSync(["electrobun", "build", "--env=stable"], {
+    cwd: projectRoot,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if (result.exitCode === 0) return;
+
+  const buildPayload = path.join(projectRoot, "build", "stable-win-x64", "FFXIV Gear Setup-Setup.tar.zst");
+  if (existsSync(buildPayload) && statSync(buildPayload).mtimeMs >= startedAt - 5000) {
+    console.warn(
+      `[package] electrobun exited ${result.exitCode}, but a fresh stable payload exists; continuing with ${buildPayload}`,
+    );
+    return;
+  }
+
+  throw new Error(`electrobun build --env=stable failed with exit code ${result.exitCode}`);
+}
+
 async function copyDir(src: string, dest: string): Promise<void> {
   if (!existsSync(src)) throw new Error(`Missing required directory: ${src}`);
   await cp(src, dest, { recursive: true });
@@ -34,6 +56,15 @@ async function copyFile(src: string, dest: string): Promise<void> {
   if (!existsSync(src)) throw new Error(`Missing required file: ${src}`);
   await mkdir(path.dirname(dest), { recursive: true });
   await cp(src, dest);
+}
+
+async function flattenElectrobunPayload(): Promise<void> {
+  if (!existsSync(extractedPayloadRoot)) throw new Error(`Missing extracted payload: ${extractedPayloadRoot}`);
+  const entries = await readdir(extractedPayloadRoot);
+  for (const entry of entries) {
+    await rename(path.join(extractedPayloadRoot, entry), path.join(stagingDir, entry));
+  }
+  await rm(extractedPayloadRoot, { recursive: true, force: true });
 }
 
 function findNodeExe(): string {
@@ -55,8 +86,8 @@ function findNodeExe(): string {
 
 function findElectrobunPayload(): string {
   const candidates = [
-    path.join(artifactsDir, "stable-win-x64-FFXIVGearSetup.tar.zst"),
     path.join(projectRoot, "build", "stable-win-x64", "FFXIV Gear Setup-Setup.tar.zst"),
+    path.join(artifactsDir, "stable-win-x64-FFXIVGearSetup.tar.zst"),
   ];
   const found = candidates.find((candidate) => existsSync(candidate));
   if (!found) {
@@ -90,33 +121,31 @@ async function seedRuntimeFiles(): Promise<void> {
 }
 
 async function seedTopLevelLaunchers(): Promise<void> {
-  await writeFile(
-    path.join(stagingDir, launchScriptName),
-    [
-      "@echo off",
-      "setlocal",
-      'set "APP_DIR=%~dp0FFXIVGearSetup"',
-      'if not exist "%APP_DIR%\\bin\\launcher.exe" (',
-      "  echo Could not find FFXIVGearSetup\\bin\\launcher.exe.",
-      "  echo Please extract the entire portable zip before running this launcher.",
-      "  pause",
-      "  exit /b 1",
-      ")",
-      'start "" "%APP_DIR%\\bin\\launcher.exe"',
-      "",
-    ].join("\r\n"),
-    "utf-8",
-  );
+  run("powershell", [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    path.join(projectRoot, "scripts", "build-portable-launcher.ps1"),
+    "-OutputPath",
+    path.join(portableRoot, launcherExeName),
+  ]);
 
   await writeFile(
     path.join(stagingDir, "README.txt"),
     [
-      "FFXIV Gear Setup Portable",
+      "FFXIV Auto BIS Portable",
       "",
-      `Run "${launchScriptName}" after extracting the whole zip.`,
+      `Run "${launcherExeName}" after extracting the whole zip.`,
+      "Do not move it away from the bin and Resources folders.",
       "",
-      "The application files live in the FFXIVGearSetup folder.",
-      "For live packet capture, keep the folder in a user-writable location.",
+      "Keep the extracted files together in a user-writable location; saved settings and live capture data write back into this folder.",
+      "",
+      "Generated files:",
+      "- Window size/position: Resources\\app\\data\\window-state.json",
+      "- Saved BIS sets/preferences: Resources\\app\\data\\bis\\catalog.json",
+      "- Gear and inventory cache: Resources\\app\\data\\cache\\",
+      "- Optional inventory debug log: Resources\\app\\logs\\inventory.jsonl when INVENTORY_LOG=1",
       "",
     ].join("\r\n"),
     "utf-8",
@@ -138,9 +167,10 @@ async function main(): Promise<void> {
     "--outfile=dist/pcap-host.cjs",
     "--external=@ffxiv-teamcraft/pcap-ffxiv",
   ]);
-  run("electrobun", ["build", "--env=stable"]);
+  runElectrobunBuild();
 
   run("tar", ["-xf", findElectrobunPayload(), "-C", stagingDir]);
+  await flattenElectrobunPayload();
   await seedRuntimeFiles();
   await seedTopLevelLaunchers();
 

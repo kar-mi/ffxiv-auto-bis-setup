@@ -173,9 +173,14 @@ function findProjectRoot(startDir: string): string {
 }
 
 // injector.node is compiled for Node.js v22 (ABI 127) — must run under node, not bun.
-// Build pcap-host.ts → dist/pcap-host.cjs (CJS bundle, externals stay in node_modules).
+// In development, build pcap-host.ts on startup. Portable builds ship the
+// prebuilt dist/pcap-host.cjs and a bundled runtime/node/node.exe.
 const pcapCjsPath = path.join(projectRoot, "dist", "pcap-host.cjs");
-{
+if (!existsSync(pcapCjsPath)) {
+  const pcapSourcePath = path.join(projectRoot, "src", "pcap", "host.ts");
+  if (!existsSync(pcapSourcePath)) {
+    throw new Error(`[pcap] Missing prebuilt capture host: ${pcapCjsPath}`);
+  }
   console.log("[pcap] Building pcap-host.cjs...");
   const build = Bun.spawnSync(
     ["bun", "build", "src/pcap/host.ts",
@@ -188,7 +193,17 @@ const pcapCjsPath = path.join(projectRoot, "dist", "pcap-host.cjs");
   if (build.exitCode !== 0) throw new Error("pcap-host build failed");
 }
 
-const pcapProc = Bun.spawn(["node", pcapCjsPath], {
+function resolveNodeBinary(root: string): string {
+  const envPath = process.env["NODE_BINARY"];
+  if (envPath && existsSync(envPath)) return envPath;
+  const bundled = process.platform === "win32"
+    ? path.join(root, "runtime", "node", "node.exe")
+    : path.join(root, "runtime", "node", "node");
+  if (existsSync(bundled)) return bundled;
+  return "node";
+}
+
+const pcapProc = Bun.spawn([resolveNodeBinary(projectRoot), pcapCjsPath], {
   stdout: "pipe",
   stderr: "pipe",
   cwd: projectRoot,

@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Windows installer
+    name: Build Windows portable zip
     runs-on: windows-latest
 
     steps:
@@ -20,17 +20,21 @@ jobs:
         with:
           bun-version: latest
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install dependencies
         run: bun install
 
-      - name: Build frontend
-        run: bun run build:ui:prod
+      - name: Type-check
+        run: bun tsc --noEmit
 
-      - name: Build desktop app
-        run: bun run desktop:build
+      - name: Build portable zip
+        run: bun run package:portable
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: artifacts/*.zip
+          files: artifacts/FFXIVGearSetup-portable-win-x64.zip

@@ -36,7 +36,13 @@ capture.on("stopped", () => {
 });
 
 capture.on("error", (err) => {
-  process.stderr.write(JSON.stringify({ type: "error", message: String(err) }) + "\n");
+  const message = String(err);
+  process.stderr.write(JSON.stringify({ type: "error", message }) + "\n");
+  send({ type: "error", message });
+});
+
+capture.on("networkData", () => {
+  send({ type: "networkData" });
 });
 
 capture.on("gearSnapshot", (snapshot) => {
@@ -64,4 +70,8 @@ async function startCapture(): Promise<void> {
   }
   await capture.start(region);
 }
-void startCapture();
+void startCapture().catch((err) => {
+  const message = String(err);
+  process.stderr.write(JSON.stringify({ type: "error", message }) + "\n");
+  send({ type: "error", message });
+});

@@ -2,6 +2,7 @@ import { signal, computed } from "@preact/signals";
 import type { GearSnapshot, GearsetComparison, GearNeeds, BisGearSet, BisCatalog, SlotName } from "../types.ts";
 import type { SlotAcquisitionStatus } from "../acquisition/types.ts";
 import type { ItemData } from "../xivapi/item-data.ts";
+import type { PcapStatus } from "../pcap/status.ts";
 
 // Named signals — import these directly in Preact components for reactivity.
 export const currentSnapshot    = signal<GearSnapshot | null>(null);
@@ -41,6 +42,7 @@ export const clearVisible       = computed(() => comparisonData.value !== null);
 export const snapshotMeta       = signal<string | null>(null);
 export const statusMsg          = signal<string | null>(null);
 export const statusIsError      = signal(false);
+export const pcapStatus         = signal<PcapStatus | null>(null);
 
 
 export interface MateriaStatEntry { stat: string; value: number }

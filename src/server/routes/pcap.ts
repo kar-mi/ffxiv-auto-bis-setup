@@ -22,6 +22,10 @@ function validateSnapshotBody(body: Record<string, unknown>, kind: "Gear" | "Inv
 export async function tryHandle(req: Request, ctx: ServerCtx): Promise<Response | null> {
   const { pathname } = new URL(req.url);
 
+  if (pathname === "/pcap/status" && req.method === "GET") {
+    return json(ctx.getPcapStatus());
+  }
+
   if (pathname === "/pcap/gear") {
     if (req.method === "GET") {
       const gear = ctx.getLatestPcapGear();

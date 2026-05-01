@@ -1,8 +1,8 @@
 import Electrobun, { BrowserWindow } from "electrobun/bun";
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import path from "path";
-import { existsSync, writeFileSync } from "fs";
-import { startServer, setWindowControls } from "../server/index.ts";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { startServer, setWindowControls, setPcapStatus, markPcapNetworkData } from "../server/index.ts";
 import type { GearSnapshot, InventorySnapshot } from "../types.ts";
 
 const SERVER_PORT = Number(process.env["PORT"] ?? 3000);
@@ -44,21 +44,28 @@ interface WindowState {
 const windowStatePath = path.join(projectRoot, "data", "window-state.json");
 const defaultWindowState: WindowState = { x: 0, y: 0, width: 1280, height: 900 };
 
+function isWindowState(raw: unknown): raw is WindowState {
+  if (!raw || typeof raw !== "object") return false;
+  const state = raw as Record<string, unknown>;
+  return (
+    typeof state["x"] === "number" &&
+    typeof state["y"] === "number" &&
+    typeof state["width"] === "number" &&
+    typeof state["height"] === "number" &&
+    Number.isFinite(state["x"]) &&
+    Number.isFinite(state["y"]) &&
+    Number.isFinite(state["width"]) &&
+    Number.isFinite(state["height"]) &&
+    state["width"] >= 600 &&
+    state["height"] >= 400
+  );
+}
+
 function loadWindowState(): WindowState {
   try {
     if (existsSync(windowStatePath)) {
-      const raw = JSON.parse(Bun.file(windowStatePath).toString()) as unknown;
-      if (raw && typeof raw === "object") {
-        const s = raw as Record<string, unknown>;
-        if (
-          typeof s["x"] === "number" &&
-          typeof s["y"] === "number" &&
-          typeof s["width"] === "number" &&
-          typeof s["height"] === "number"
-        ) {
-          return { x: s["x"], y: s["y"], width: s["width"], height: s["height"] };
-        }
-      }
+      const raw = JSON.parse(readFileSync(windowStatePath, "utf8")) as unknown;
+      if (isWindowState(raw)) return raw;
     }
   } catch {
     // ignore — fall through to default
@@ -67,8 +74,10 @@ function loadWindowState(): WindowState {
 }
 
 function saveWindowState(state: WindowState): void {
+  if (!isWindowState(state)) return;
   try {
-    writeFileSync(windowStatePath, JSON.stringify(state));
+    mkdirSync(path.dirname(windowStatePath), { recursive: true });
+    writeFileSync(windowStatePath, `${JSON.stringify(state, null, 2)}\n`);
   } catch (e) {
     console.warn("[window-state] Failed to save:", e);
   }
@@ -118,6 +127,7 @@ let lastKnownFrame: WindowState = { ...savedState };
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function scheduleWindowStateSave(frame: WindowState): void {
+  if (win.isMaximized()) return;
   lastKnownFrame = frame;
   if (saveTimer !== null) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
@@ -209,6 +219,7 @@ const pcapProc = Bun.spawn([resolveNodeBinary(projectRoot), pcapCjsPath], {
   cwd: projectRoot,
   env: { ...process.env, PCAP_REGION: process.env["PCAP_REGION"] ?? "Global" },
 });
+setPcapStatus({ phase: "starting", message: "Starting packet capture..." });
 
 // Read newline-delimited JSON from the host process
 async function readPcapOutput(): Promise<void> {
@@ -223,7 +234,7 @@ async function readPcapOutput(): Promise<void> {
     for (const line of lines) {
       if (!line.trim()) continue;
       try {
-        const msg = JSON.parse(line) as { type: string; data?: GearSnapshot; message?: string };
+        const msg = JSON.parse(line) as { type: string; data?: GearSnapshot | InventorySnapshot; message?: string };
         handlePcapMessage(msg);
       } catch {
         console.warn("[pcap-host] Unparseable line:", line);
@@ -243,10 +254,25 @@ function handlePcapMessage(msg: { type: string; data?: GearSnapshot | InventoryS
   switch (msg.type) {
     case "started":
       console.log("[pcap] Capture running — waiting for gear packets (container 1000)");
+      setPcapStatus({
+        phase: "capturing",
+        startedAt: new Date().toISOString(),
+        message: "Packet capture is running.",
+      });
       break;
     case "stopped":
       console.log("[pcap] Capture stopped");
+      setPcapStatus({ phase: "stopped", message: "Packet capture stopped." });
       break;
+    case "networkData":
+      markPcapNetworkData();
+      break;
+    case "error": {
+      const message = msg.message ?? "Packet capture failed.";
+      const phase = message.includes("GAME_NOT_RUNNING") ? "game-not-running" : "error";
+      setPcapStatus({ phase, message });
+      break;
+    }
     case "gearSnapshot": {
       if (!msg.data) break;
       const snapshot = msg.data as GearSnapshot;
@@ -277,4 +303,7 @@ readPcapOutput().catch((err) => console.error("[pcap-host] stdout read error:", 
 readPcapStderr().catch((err) => console.error("[pcap-host] stderr read error:", err));
 
 // Clean up on exit
-process.on("exit", () => pcapProc.kill());
+process.on("exit", () => {
+  saveWindowState(lastKnownFrame);
+  pcapProc.kill();
+});

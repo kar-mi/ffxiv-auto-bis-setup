@@ -43,6 +43,7 @@ export interface GearPacketCaptureEvents {
   started: () => void;
   stopped: () => void;
   error: (err: unknown) => void;
+  networkData: () => void;
   gearSnapshot: (snapshot: GearSnapshot) => void;
   inventorySnapshot: (snapshot: InventorySnapshot) => void;
 }
@@ -65,6 +66,7 @@ export class GearPacketCapture extends EventEmitter {
   private currentClassId?: number;
   private currentCharacterId?: number;
   private materiaLookup: MateriaLookup = new Map();
+  private lastNetworkDataSignalAt = 0;
 
   /**
    * Inventory state: containerId → (slot → InventoryItem).
@@ -97,6 +99,7 @@ export class GearPacketCapture extends EventEmitter {
     this.captureInterface.setMaxListeners(0);
 
     this.captureInterface.on('message', (msg: Message) => {
+      this.emitNetworkData();
       if (debug) {
         const raw = msg as unknown as Record<string, unknown>;
         const opcode = raw['opcode'];
@@ -129,6 +132,13 @@ export class GearPacketCapture extends EventEmitter {
       await this.captureInterface.stop();
       this.captureInterface = null;
     }
+  }
+
+  private emitNetworkData(): void {
+    const now = Date.now();
+    if (now - this.lastNetworkDataSignalAt < 1000) return;
+    this.lastNetworkDataSignalAt = now;
+    this.emit('networkData');
   }
 
   private async handleMessage(msg: Message): Promise<void> {

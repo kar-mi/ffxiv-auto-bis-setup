@@ -18,12 +18,11 @@ function StatusDot({ status }: { status: string | null }) {
   return <span class={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${colors[status] ?? ""} flex-shrink-0`} />;
 }
 
-function GearCard({ slot, piece, itemDataMap, slotComp, index }: {
+function GearCard({ slot, piece, itemDataMap, slotComp }: {
   slot: string;
   piece: EquipmentPiece | null;
   itemDataMap: Map<number, ItemData>;
   slotComp: SlotComparison | undefined;
-  index: number;
 }) {
   const label      = SLOT_LABELS[slot] ?? slot;
   const status     = slotComp?.status ?? null;
@@ -31,13 +30,11 @@ function GearCard({ slot, piece, itemDataMap, slotComp, index }: {
   const isClickable = hasStatus && status !== "match";
   const hoverCls   = hasStatus ? "" : " hover:border-ffxiv-gold";
   const cursorCls  = isClickable ? " cursor-pointer" : "";
-  const delay      = { animationDelay: `${index * 40}ms` };
 
   if (!piece) {
     return (
       <div
         class={`gear-card relative flex items-start gap-2 bg-ffxiv-panel border border-ffxiv-border rounded p-2 opacity-40${cursorCls}`}
-        style={delay}
         onClick={isClickable ? () => openCompareModal(slot) : undefined}
       >
         <Corners />
@@ -59,7 +56,6 @@ function GearCard({ slot, piece, itemDataMap, slotComp, index }: {
   return (
     <div
       class={`gear-card relative flex items-start gap-2 bg-ffxiv-panel border border-ffxiv-border rounded p-2 transition-colors${hoverCls}${cursorCls}`}
-      style={delay}
       onClick={isClickable ? () => openCompareModal(slot) : undefined}
     >
       <Corners />
@@ -80,7 +76,7 @@ function GearCard({ slot, piece, itemDataMap, slotComp, index }: {
 function CrystalCard({ piece, itemDataMap }: { piece: EquipmentPiece | null; itemDataMap: Map<number, ItemData> }) {
   if (!piece) {
     return (
-      <div class="gear-card relative w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 opacity-40" style={{ animationDelay: "120ms" }}>
+      <div class="gear-card relative w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 opacity-40">
         <Corners />
         <div class="w-10 h-10 rounded bg-ffxiv-border" />
         <p class="text-[9px] text-gray-600 italic">None</p>
@@ -90,7 +86,7 @@ function CrystalCard({ piece, itemDataMap }: { piece: EquipmentPiece | null; ite
   const data    = itemDataMap.get(piece.itemId);
   const jobName = data?.name ? data.name.replace(/^Soul of (?:the )?/i, "") : `Item #${piece.itemId}`;
   return (
-    <div class="gear-card relative w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 p-2 hover:border-ffxiv-gold transition-colors" style={{ animationDelay: "120ms" }}>
+    <div class="gear-card relative w-20 h-20 bg-ffxiv-panel border border-ffxiv-border rounded flex flex-col items-center justify-center gap-1 p-2 hover:border-ffxiv-gold transition-colors">
       <Corners />
       <ItemIcon src={data?.icon} />
       <p class="text-[9px] text-gray-300 font-medium text-center leading-tight">{jobName}</p>
@@ -118,16 +114,16 @@ export function GearTab() {
   return (
     <div class="flex gap-3 items-start">
       <div class="flex-1 min-w-0 space-y-2">
-        {LEFT_SLOTS.map((slot, i) => (
-          <GearCard key={slot} slot={slot} piece={snapshot.items[slot] ?? null} itemDataMap={merged} slotComp={slotCompMap[slot]} index={i} />
+        {LEFT_SLOTS.map((slot) => (
+          <GearCard key={slot} slot={slot} piece={snapshot.items[slot] ?? null} itemDataMap={merged} slotComp={slotCompMap[slot]} />
         ))}
       </div>
       <div class="flex-shrink-0 flex items-center justify-center self-center">
         <CrystalCard piece={snapshot.items["crystal"] ?? null} itemDataMap={merged} />
       </div>
       <div class="flex-1 min-w-0 space-y-2">
-        {RIGHT_SLOTS.map((slot, i) => (
-          <GearCard key={slot} slot={slot} piece={snapshot.items[slot] ?? null} itemDataMap={merged} slotComp={slotCompMap[slot]} index={LEFT_SLOTS.length + i} />
+        {RIGHT_SLOTS.map((slot) => (
+          <GearCard key={slot} slot={slot} piece={snapshot.items[slot] ?? null} itemDataMap={merged} slotComp={slotCompMap[slot]} />
         ))}
       </div>
     </div>

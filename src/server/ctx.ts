@@ -1,4 +1,5 @@
 import type { GearSnapshot, InventorySnapshot } from '../types.ts';
+import type { PcapStatus } from '../pcap/status.ts';
 
 export interface WindowControls {
   minimize(): void;
@@ -18,5 +19,6 @@ export interface ServerCtx {
   setLatestInventory(snap: InventorySnapshot): void;
   isGearLive(): boolean;
   isInventoryLive(): boolean;
+  getPcapStatus(): PcapStatus;
   windowControls: WindowControls;
 }

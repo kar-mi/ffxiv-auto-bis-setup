@@ -5,6 +5,8 @@ import {
   loadGearCache, saveGearCache, loadInventoryCache, saveInventoryCache,
   saveJobGearCache, loadJobGearCache as _loadJobGearCache,
 } from "../pcap/snapshot-cache.ts";
+import { withPcapWarning } from "../pcap/status.ts";
+import type { PcapStatus } from "../pcap/status.ts";
 import type { ServerCtx, WindowControls } from "./ctx.ts";
 import * as windowRoute     from "./routes/window.ts";
 import * as pcapRoute       from "./routes/pcap.ts";
@@ -20,14 +22,33 @@ let latestInventory: InventorySnapshot | null = null;
 let gearIsLive = false;
 let inventoryIsLive = false;
 let selectedGear: GearSnapshot | null = null;
+let pcapStatus: PcapStatus = {
+  phase: "unavailable",
+  updatedAt: new Date().toISOString(),
+  message: "Packet capture is only available in desktop mode.",
+};
 
 export function getLatestPcapGear(): GearSnapshot | null { return latestPcapGear; }
 export function getLatestInventory(): InventorySnapshot | null { return latestInventory; }
+export function getPcapStatus(): PcapStatus { return withPcapWarning(pcapStatus); }
+
+export function setPcapStatus(update: Partial<Omit<PcapStatus, "updatedAt" | "warning">>): void {
+  pcapStatus = {
+    ...pcapStatus,
+    ...update,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function markPcapNetworkData(): void {
+  setPcapStatus({ lastNetworkAt: new Date().toISOString() });
+}
 
 export function setLatestPcapGear(snapshot: GearSnapshot): void {
   latestPcapGear = snapshot;
   selectedGear = snapshot;
   gearIsLive = true;
+  setPcapStatus({ phase: "live", lastSnapshotAt: snapshot.capturedAt, message: undefined });
   void saveGearCache(PROJECT_ROOT, snapshot);
   if (snapshot.classId !== undefined) void saveJobGearCache(PROJECT_ROOT, snapshot.classId, snapshot);
 }
@@ -35,6 +56,7 @@ export function setLatestPcapGear(snapshot: GearSnapshot): void {
 export function setLatestInventory(snapshot: InventorySnapshot): void {
   latestInventory = snapshot;
   inventoryIsLive = true;
+  setPcapStatus({ phase: "live", lastSnapshotAt: snapshot.capturedAt, message: undefined });
   void saveInventoryCache(PROJECT_ROOT, snapshot);
   void logInventorySnapshot(snapshot);
 }
@@ -87,6 +109,7 @@ export async function startServer(
     setLatestInventory,
     isGearLive: () => gearIsLive,
     isInventoryLive: () => inventoryIsLive,
+    getPcapStatus,
     get windowControls() { return windowControls; },
   };
 

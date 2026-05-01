@@ -33,6 +33,64 @@ jobs:
       - name: Build portable zip
         run: bun run package:portable
 
+      - name: Verify portable zip layout
+        shell: pwsh
+        run: |
+          $zip = "artifacts/FFXIVGearSetup-portable-win-x64.zip"
+          $checkDir = Join-Path $env:RUNNER_TEMP "portable-check"
+
+          if (!(Test-Path $zip)) {
+            throw "Missing portable zip: $zip"
+          }
+
+          Remove-Item -LiteralPath $checkDir -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive -LiteralPath $zip -DestinationPath $checkDir -Force
+
+          $required = @(
+            "FFXIVAutoBIS.exe",
+            "README.txt",
+            "bin/launcher.exe",
+            "bin/bun.exe",
+            "Resources/main.js",
+            "Resources/app/data/materias.json",
+            "Resources/app/dist/pcap-host.cjs",
+            "Resources/app/runtime/node/node.exe"
+          )
+
+          foreach ($path in $required) {
+            $fullPath = Join-Path $checkDir $path
+            if (!(Test-Path $fullPath)) {
+              throw "Portable zip is missing required path: $path"
+            }
+          }
+
+          $forbidden = @(
+            "Run FFXIV Gear Setup.cmd",
+            "FFXIVAutoBIS.lnk",
+            "FFXIV Gear Setup.exe",
+            "FFXIVGearSetup"
+          )
+
+          foreach ($path in $forbidden) {
+            $fullPath = Join-Path $checkDir $path
+            if (Test-Path $fullPath) {
+              throw "Portable zip contains obsolete path: $path"
+            }
+          }
+
+          $readme = Get-Content (Join-Path $checkDir "README.txt") -Raw
+          foreach ($text in @(
+            "Run `"FFXIVAutoBIS.exe`"",
+            "Resources\app\data\window-state.json",
+            "Resources\app\data\bis\catalog.json",
+            "Resources\app\data\cache\",
+            "Resources\app\logs\inventory.jsonl"
+          )) {
+            if (!$readme.Contains($text)) {
+              throw "README.txt is missing expected text: $text"
+            }
+          }
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:

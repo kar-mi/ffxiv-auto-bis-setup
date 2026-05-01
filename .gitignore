@@ -10,7 +10,8 @@ dist/
 out/
 
 # Generated data
-data/
+data/*
+!data/materias.json
 
 # Debug log files (keep the logs/ dir itself)
 logs/*.jsonl

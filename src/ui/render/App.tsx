@@ -25,6 +25,7 @@ import { CompareModal } from "./CompareModal.tsx";
 import { SettingsModal, settingsOpen } from "./SettingsModal.tsx";
 import { Corners } from "../components/Corners.tsx";
 import { SnapshotStatus } from "../components/SnapshotStatus.tsx";
+import { PcapWarningModal } from "../components/PcapWarningModal.tsx";
 import { Titlebar } from "./Titlebar.tsx";
 import { ResizeHandles } from "./ResizeHandles.tsx";
 
@@ -132,7 +133,7 @@ function GearTabPanel() {
         </div>
         <button
           class="relative px-4 py-2 text-sm rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors"
-          onClick={() => void loadGear()}
+          onClick={() => void loadGear({ showCaptureWarningModal: true })}
         >
           <Corners />
           Refresh
@@ -436,6 +437,7 @@ export function App() {
         <AcquisitionTabPanel />
       </div>
       <CompareModal />
+      <PcapWarningModal />
       <SettingsModal />
       <ResizeHandles />
     </>

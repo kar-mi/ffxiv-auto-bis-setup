@@ -1,9 +1,9 @@
 import { pcapStatus, snapshotMeta } from "../state.ts";
-import { pcapWarningMessage } from "../pcap-status.ts";
+import { pcapImmediateWarningMessage } from "../pcap-status.ts";
 
 export function SnapshotStatus() {
   const meta = snapshotMeta.value;
-  const warning = pcapWarningMessage(pcapStatus.value);
+  const warning = pcapImmediateWarningMessage(pcapStatus.value);
   if (!meta && !warning) return null;
   return (
     <div class="mb-4 space-y-1">

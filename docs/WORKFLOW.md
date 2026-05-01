@@ -123,8 +123,11 @@ src/ui/main.tsx  (entry point — built to public/bundle.js via bun build:ui)
   │   ├── SettingsModal.tsx <SettingsModal /> — settingsOpen signal
   │   ├── Titlebar.tsx      <Titlebar /> — custom desktop chrome controls + drag
   │   ├── ResizeHandles.tsx <ResizeHandles /> — 8 invisible edge/corner hit zones
-  │   └── components/
-  │       └── Corners.tsx   <Corners /> — decorative corner spans
+  │
+  ├── components/
+  │   ├── Corners.tsx       <Corners /> — decorative corner spans
+  │   ├── SnapshotStatus.tsx — cached/live snapshot and capture warning status
+  │   └── PcapWarningModal.tsx — manual-refresh capture warning modal
   │
   ├── bis/
   │   ├── catalog.ts        loadCatalog(), addSetFromUrl(), patchSet(),
@@ -270,9 +273,11 @@ src/
 │   │   ├── UpgradesTab.tsx  — <UpgradesTab />; upgrade item grid; loadUpgradeItems()
 │   │   ├── BisTab.tsx       — <SavedSetsTab />; catalog CRUD with inline event handlers
 │   │   ├── CompareModal.tsx — <CompareModal />; slot modal; openCompareModal() / closeModal()
-│   │   ├── SettingsModal.tsx — <SettingsModal />; settingsOpen signal
-│   │   └── components/
-│   │       └── Corners.tsx  — <Corners />; decorative corner spans
+│   │   └── SettingsModal.tsx — <SettingsModal />; settingsOpen signal
+│   ├── components/
+│   │   ├── Corners.tsx     — <Corners />; decorative corner spans
+│   │   ├── SnapshotStatus.tsx — cached/live snapshot and capture warning status
+│   │   └── PcapWarningModal.tsx — manual-refresh capture warning modal
 │   ├── bis/
 │   │   ├── catalog.ts       — loadCatalog(), addSetFromUrl(), patchSet(), refreshBisDropdown()
 │   │   ├── balance.ts       — loadBalanceLinksForModal()

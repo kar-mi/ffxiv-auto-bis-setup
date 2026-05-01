@@ -43,6 +43,7 @@ export const snapshotMeta       = signal<string | null>(null);
 export const statusMsg          = signal<string | null>(null);
 export const statusIsError      = signal(false);
 export const pcapStatus         = signal<PcapStatus | null>(null);
+export const pcapWarningModalMsg = signal<string | null>(null);
 
 
 export interface MateriaStatEntry { stat: string; value: number }

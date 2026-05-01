@@ -8,19 +8,22 @@ on:
 permissions:
   contents: write
 
+env:
+  BROWSERSLIST_IGNORE_OLD_DATA: '1'
+
 jobs:
   build:
     name: Build Windows portable zip
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 

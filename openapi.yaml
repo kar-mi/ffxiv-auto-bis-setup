@@ -523,8 +523,9 @@ paths:
       summary: Per-slot acquisition paths
       description: >
         Returns per-slot acquisition status — coffer availability, book
-        exchange options, and upgrade paths — cross-referenced against the
-        current inventory. Returns 409 if no gear snapshot is available.
+        exchange options, upgrade paths, and applicable alliance trade-in
+        checks — cross-referenced against the current inventory. Returns 409
+        if no gear snapshot is available.
       parameters:
         - $ref: "#/components/parameters/XivgearUrl"
         - $ref: "#/components/parameters/SetParam"
@@ -725,8 +726,8 @@ paths:
       summary: All upgrade-related items for the active raid tier
       description: >
         Returns all upgrade-related items (tomestones, coffers, upgrade
-        materials, raid books) for the active raid tier, cross-referenced
-        against the current inventory.  Unlike `/acquisition`, this endpoint
+        materials, alliance trade-in items, raid books) for the active raid
+        tier, cross-referenced against the current inventory.  Unlike `/acquisition`, this endpoint
         does NOT filter by whether the player currently needs an item — every
         item defined in the acquisition map is returned.  `have` will be 0 if
         no inventory snapshot exists.
@@ -747,6 +748,10 @@ paths:
                     items: { $ref: "#/components/schemas/UpgradeItem" }
                   materials:
                     type: array
+                    items: { $ref: "#/components/schemas/UpgradeItem" }
+                  allianceTradeIn:
+                    type: array
+                    description: Items traded as a set for applicable upgrade materials such as Twine or Glaze
                     items: { $ref: "#/components/schemas/UpgradeItem" }
                   materia:
                     type: array
@@ -1269,6 +1274,18 @@ components:
         available:
           type: boolean
 
+    AllianceTradeInStatus:
+      type: object
+      required: [items, available]
+      properties:
+        items:
+          type: array
+          description: One of each item is required for the trade-in.
+          items:
+            $ref: "#/components/schemas/ItemCount"
+        available:
+          type: boolean
+
     UpgradeMaterialStatus:
       type: object
       required: [material, available, bookCost]
@@ -1279,6 +1296,10 @@ components:
           type: boolean
         bookCost:
           $ref: "#/components/schemas/BookExchangeStatus"
+        allianceTradeIn:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/AllianceTradeInStatus"
 
     BaseItemStatus:
       type: object

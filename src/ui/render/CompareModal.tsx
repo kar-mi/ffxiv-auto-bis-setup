@@ -174,6 +174,7 @@ function AcquisitionAdvice({ s, itemDataMap }: {
     const tomeName  = iname(base.tomes.itemId,          base.tomes.name);
     const matName   = iname(material.material.itemId,   material.material.name);
     const bookName  = iname(material.bookCost.book.itemId, material.bookCost.book.name);
+    const alliance = material.allianceTradeIn;
 
     const baseDetail = base.haveBaseEquipped
       ? <>780 base piece is equipped &mdash; unequip before trading at the vendor. </>
@@ -185,9 +186,17 @@ function AcquisitionAdvice({ s, itemDataMap }: {
 
     const matDetail = material.available
       ? <><strong>{matName}</strong> is in your bags &mdash; ready to upgrade at the vendor.</>
-      : material.bookCost.available
-        ? <>Trade {material.bookCost.book.need}&times; <strong>{bookName}</strong> for <strong>{matName}</strong> (have {material.bookCost.book.have}).</>
-        : <>Need <strong>{matName}</strong> &mdash; costs {material.bookCost.book.need}&times; <strong>{bookName}</strong> (have {material.bookCost.book.have}).</>;
+      : (
+        <>
+          Trade {material.bookCost.book.need}&times; <strong>{bookName}</strong> for <strong>{matName}</strong> (have {material.bookCost.book.have}).
+          {alliance && (
+            <>
+              <br />
+              Trade all 3 alliance coins for <strong>{matName}</strong>.
+            </>
+          )}
+        </>
+      );
 
     sections.push(
       <AdviceBlock key="upgrade" label="Upgrade" ready={available}>

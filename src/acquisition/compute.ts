@@ -7,6 +7,8 @@ import type {
   CofferStatus,
   BookExchangeStatus,
   UpgradeMaterialStatus,
+  UpgradeMaterialDef,
+  AllianceTradeInStatus,
   BaseItemStatus,
   UpgradePathStatus,
   ItemCount,
@@ -19,6 +21,20 @@ function qty(counts: Map<number, number>, itemId: number): number {
 
 function itemCount(counts: Map<number, number>, itemId: number, name: string, need: number): ItemCount {
   return { itemId, name, have: qty(counts, itemId), need };
+}
+
+function canUseAllianceTradeIn(material: UpgradeMaterialDef): boolean {
+  return material.key === 'twine' || material.key === 'glaze';
+}
+
+function allianceTradeInStatus(
+  counts: Map<number, number>,
+  map: GearAcquisitionMap,
+  material: UpgradeMaterialDef,
+): AllianceTradeInStatus | null {
+  if (!canUseAllianceTradeIn(material) || !map.alliance_trade_in?.length) return null;
+  const items = map.alliance_trade_in.map(item => itemCount(counts, item.itemId, item.name, 1));
+  return { items, available: items.every(item => item.have >= item.need) };
 }
 
 /**
@@ -94,16 +110,22 @@ export function computeAcquisition(
           available: qty(counts, upgMatBook.itemId) >= upgMat.bookCount,
         };
         const mat = itemCount(counts, upgMat.itemId, upgMat.name, 1);
-        return { material: mat, available: mat.have >= 1, bookCost };
+        return {
+          material: mat,
+          available: mat.have >= 1,
+          bookCost,
+          allianceTradeIn: allianceTradeInStatus(counts, map, upgMat),
+        };
       })() : {
         material: { itemId: 0, name: 'Unknown upgrade material', have: 0, need: 1 },
         available: false,
         bookCost: { book: { itemId: 0, name: 'Unknown', have: 0, need: 0 }, available: false },
+        allianceTradeIn: null,
       };
 
       const available =
         (base.haveBase || base.canBuyWithTomes) &&
-        (material.available || material.bookCost.available);
+        (material.available || material.bookCost.available || (material.allianceTradeIn?.available ?? false));
 
       return { upgradeItemId: need.bisItemId, base, material, available };
     })() : null;

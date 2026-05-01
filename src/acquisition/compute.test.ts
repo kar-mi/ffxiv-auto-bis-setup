@@ -107,6 +107,53 @@ describe("computeAcquisition — upgrade path", () => {
     expect(result.upgrade?.material.material.name).toBe("Unknown upgrade material");
   });
 
+  test("alliance trade-in complete → upgrade material path is available for twine/glaze", () => {
+    const twineMap: GearAcquisitionMap = {
+      ...baseMap,
+      alliance_trade_in: [
+        { itemId: 41, name: "Coin A" },
+        { itemId: 42, name: "Coin B" },
+        { itemId: 43, name: "Coin C" },
+      ],
+      upgradeMaterials: [
+        { key: "twine", itemId: 30, name: "Test Twine", bookIndex: 0, bookCount: 4 },
+      ],
+      slots: { mainHand: { ...baseMap.slots["mainHand"], upgradeMaterialKey: "twine" } },
+    };
+    const inv = makeInventory([
+      { itemId: baseItemId, quantity: 1, hq: false, containerId: 0, slot: 0 },
+      { itemId: 41, quantity: 1, hq: false, containerId: 0, slot: 1 },
+      { itemId: 42, quantity: 1, hq: false, containerId: 0, slot: 2 },
+      { itemId: 43, quantity: 1, hq: false, containerId: 0, slot: 3 },
+    ]);
+    const result = computeAcquisition(upgradeNeeds, twineMap, inv, upgradeBisIds, null)[0]!;
+    expect(result.upgrade?.material.allianceTradeIn?.available).toBe(true);
+    expect(result.upgrade?.available).toBe(true);
+  });
+
+  test("alliance trade-in missing one coin → upgrade material path is unavailable", () => {
+    const glazeMap: GearAcquisitionMap = {
+      ...baseMap,
+      alliance_trade_in: [
+        { itemId: 41, name: "Coin A" },
+        { itemId: 42, name: "Coin B" },
+        { itemId: 43, name: "Coin C" },
+      ],
+      upgradeMaterials: [
+        { key: "glaze", itemId: 30, name: "Test Glaze", bookIndex: 0, bookCount: 4 },
+      ],
+      slots: { mainHand: { ...baseMap.slots["mainHand"], upgradeMaterialKey: "glaze" } },
+    };
+    const inv = makeInventory([
+      { itemId: baseItemId, quantity: 1, hq: false, containerId: 0, slot: 0 },
+      { itemId: 41, quantity: 1, hq: false, containerId: 0, slot: 1 },
+      { itemId: 42, quantity: 1, hq: false, containerId: 0, slot: 2 },
+    ]);
+    const result = computeAcquisition(upgradeNeeds, glazeMap, inv, upgradeBisIds, null)[0]!;
+    expect(result.upgrade?.material.allianceTradeIn?.available).toBe(false);
+    expect(result.upgrade?.available).toBe(false);
+  });
+
   test("gear === null → haveBaseEquipped = false", () => {
     const result = computeAcquisition(upgradeNeeds, baseMap, null, upgradeBisIds, null)[0]!;
     expect(result.upgrade?.base.haveBaseEquipped).toBe(false);

@@ -68,8 +68,8 @@ Browser / UI  ──────────────────────
   GET  /compare?url=&set=  → compares gear snapshot against a BIS set       │
   GET  /needs?url=&set=    → lists items/materia still needed for BIS        │
   GET  /acquisition?url=   → per-slot acquisition paths cross-ref'd against  │
-                             inventory (coffer / books / upgrade)             │
-  GET  /upgrade-items      → all upgrade-related items for the active tier   │
+                             inventory (coffer / books / upgrade / trade-in)  │
+  GET  /upgrade-items      → all upgrade/trade-in items for the active tier  │
   GET  /bis/catalog        → returns the saved BIS catalog                  │
   POST /bis/catalog/sets   → fetches + saves a BIS set to the catalog       │
   PATCH/DELETE /bis/catalog/sets/:id   → update or remove a catalog entry   │
@@ -168,7 +168,8 @@ src/
 │   │                          GearAcquisitionMap, SlotAcquisition, BookDef,
 │   │                          UpgradeMaterialDef, SlotAcquisitionStatus,
 │   │                          CofferStatus, BookExchangeStatus, UpgradePathStatus,
-│   │                          BaseItemStatus, UpgradeMaterialStatus, ItemCount
+│   │                          AllianceTradeInStatus, BaseItemStatus,
+│   │                          UpgradeMaterialStatus, ItemCount
 │   ├── loader.ts            — loadGearAcquisitionMap(projectRoot)
 │   │                          reads raidinfo/index.json → raidinfo/<tier>/gear-acquisition.json
 │   │                          process-lifetime cache (invalidate by restarting)

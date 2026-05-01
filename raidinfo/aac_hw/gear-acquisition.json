@@ -13,6 +13,11 @@
     { "itemId": 49762, "name": "AAC Illustrated: HW Edition 3" },
     { "itemId": 49763, "name": "AAC Illustrated: HW Edition 4" }
   ],
+  "alliance_trade_in": [
+    { "itemId": 44549, "name": "Ordelle Coin" },
+    { "itemId": 46978, "name": "Montiont Coin" },
+    { "itemId": 50888, "name": "Ranperre Coin" }
+  ],
   "upgradeMaterials": [
     {
       "key": "solvent",

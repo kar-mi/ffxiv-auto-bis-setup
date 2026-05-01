@@ -12,12 +12,14 @@ const upgradeData      = signal<UpgradeItemsResponse | null>(null);
 const upgradeStatus    = signal<Status>("idle");
 const upgradeErrorMsg  = signal("");
 
-const CATEGORIES: { key: keyof Omit<UpgradeItemsResponse, "baseGear">; label: string }[] = [
-  { key: "currency",  label: "Currency"  },
+type ItemCategoryKey = Exclude<keyof UpgradeItemsResponse, "baseGear" | "currency">;
+
+const CATEGORIES: { key: ItemCategoryKey; label: string }[] = [
+  { key: "books",     label: "Books"     },
   { key: "coffers",   label: "Coffers"   },
   { key: "materials", label: "Materials" },
+  { key: "allianceTradeIn", label: "Alliance Trade-In" },
   { key: "materia",   label: "Materia"   },
-  { key: "books",     label: "Books"     },
 ];
 
 export async function loadUpgradeItems(): Promise<void> {
@@ -47,6 +49,23 @@ function GridCell({ item }: { item: UpgradeItemEntry }) {
     >
       <Corners />
       <ItemIcon src={item.icon} className={dim} />
+      <span class={`text-[11px] font-mono${have ? " text-green-400" : " text-gray-500 opacity-60"}`}>
+        &times;{item.have}
+      </span>
+    </div>
+  );
+}
+
+function CurrencyCell({ item }: { item: UpgradeItemEntry }) {
+  const have = item.have > 0;
+  return (
+    <div
+      class={`relative inline-flex h-11 min-w-[180px] items-center gap-2 bg-ffxiv-panel border ${have ? "border-ffxiv-border hover:border-ffxiv-gold" : "border-ffxiv-border hover:border-gray-500"} rounded px-2 transition-colors cursor-default`}
+      data-tooltip={item.name ?? `Item #${item.itemId}`}
+    >
+      <Corners />
+      <ItemIcon src={item.icon} className={have ? "w-7 h-7" : "w-7 h-7 opacity-60"} />
+      <span class="min-w-0 flex-1 truncate text-[11px] text-gray-300">{item.name}</span>
       <span class={`text-[11px] font-mono${have ? " text-green-400" : " text-gray-500 opacity-60"}`}>
         &times;{item.have}
       </span>
@@ -102,19 +121,20 @@ export function UpgradesTab() {
   }
 
   const sections = CATEGORIES.filter(({ key }) => (data[key]?.length ?? 0) > 0);
+  const currency = data.currency ?? [];
   const hasBaseGear = data.baseGear && data.baseGear.length > 0;
 
-  if (sections.length === 0 && !hasBaseGear) {
+  if (currency.length === 0 && sections.length === 0 && !hasBaseGear) {
     return <p class="text-xs text-gray-500 italic">No upgrade items found for the active raid tier.</p>;
   }
 
   return (
     <>
-      {hasBaseGear && (
-        <div class="mb-5">
-          <h3 class="font-cinzel text-xs font-semibold text-ffxiv-gold uppercase tracking-wide mb-2">Pre-upgrade Gear</h3>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
-            {data.baseGear!.map(entry => <BaseGearCell key={entry.slot} entry={entry} />)}
+      {currency.length > 0 && (
+        <div class="mb-4">
+          <h3 class="font-cinzel text-xs font-semibold text-ffxiv-gold uppercase tracking-wide mb-2">Currency</h3>
+          <div class="flex flex-wrap gap-2">
+            {currency.map(item => <CurrencyCell key={item.itemId} item={item} />)}
           </div>
         </div>
       )}
@@ -126,6 +146,14 @@ export function UpgradesTab() {
           </div>
         </div>
       ))}
+      {hasBaseGear && (
+        <div class="mb-5">
+          <h3 class="font-cinzel text-xs font-semibold text-ffxiv-gold uppercase tracking-wide mb-2">Pre-upgrade Gear</h3>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
+            {data.baseGear!.map(entry => <BaseGearCell key={entry.slot} entry={entry} />)}
+          </div>
+        </div>
+      )}
     </>
   );
 }

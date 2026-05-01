@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows a lightweight [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) style. Release tags use `vMAJOR.MINOR.PATCH` and should match `package.json`.
 
+## [0.4.0] - 2026-05-01
+
+### Added
+- Settings persistence for app defaults and Balance job selection.
+- Windows executable icon embedding for portable builds.
+- Alliance raid trade-in tracking for acquisition planning.
+
+### Changed
+- Acquisition responses now include trade-in item context for relevant upgrade paths.
+- Upgrade and comparison UI surfaces now show alliance trade-in requirements.
+
 ## [0.3.0] - 2026-05-01
 
 ### Added

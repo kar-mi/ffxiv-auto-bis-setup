@@ -46,9 +46,25 @@ the ZIP. It expires after 7 days.
    bun run verify:portable
    ```
 
-4. Commit the version and changelog changes.
-5. Create a tag matching `package.json`, for example `v0.2.2`.
-6. Push `main` and the tag.
+4. Commit the version and changelog changes:
+
+   ```bash
+   git status --short
+   git add package.json CHANGELOG.md
+   git commit -m "chore: release v0.2.2"
+   ```
+
+5. Create a tag matching `package.json`, for example `v0.2.2`:
+
+   ```bash
+   git tag v0.2.2
+   ```
+
+6. Push `main` and the tag:
+
+   ```bash
+   git push origin main v0.2.2
+   ```
 
 On tag pushes, the workflow validates that `GITHUB_REF_NAME` matches
 `package.json`'s version, builds the portable ZIP, verifies its layout, and

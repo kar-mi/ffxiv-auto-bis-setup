@@ -1,5 +1,6 @@
 {
   "name": "ffxiv_gear_setup",
+  "version": "0.2.1",
   "module": "src/server/index.ts",
   "type": "module",
   "scripts": {
@@ -8,6 +9,7 @@
     "desktop:build": "electrobun build --env=canary",
     "desktop:build:stable": "electrobun build --env=stable",
     "package:portable": "bun run scripts/package-portable.ts",
+    "verify:portable": "bun run scripts/verify-portable.ts",
     "build": "bun run build:ui",
     "build:css": "tailwindcss -i ./src/ui/styles.css -o ./public/styles.css --minify",
     "watch:css": "tailwindcss -i ./src/ui/styles.css -o ./public/styles.css --watch",
@@ -18,6 +20,7 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/three": "0.183.1",
     "electrobun": "1.16.0",
     "tailwindcss": "3",
     "typescript": "^5.0.0"

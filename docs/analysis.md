@@ -16,6 +16,7 @@ The highest-priority release recommendations from this snapshot have been implem
 - `CHANGELOG.md` tracks user-facing release history and GitHub Releases reference it.
 - `README.md` documents the Windows portable-first support target.
 - `public/index.html` already uses local `public/styles.css`; no CDN Tailwind reference remains.
+- `.github/workflows/release.yml` supports manual `workflow_dispatch` dry runs that build and verify the portable ZIP without creating a GitHub Release. See `docs/RELEASE.md`.
 
 Remaining follow-up:
 - Consider pinning the exact Bun version in CI once the project chooses a supported range.

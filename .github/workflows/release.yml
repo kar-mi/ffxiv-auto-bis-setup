@@ -1,6 +1,7 @@
 name: Build and Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*.*.*'
@@ -31,6 +32,7 @@ jobs:
         run: bun install
 
       - name: Validate release tag
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         run: |
           $package = Get-Content package.json -Raw | ConvertFrom-Json
@@ -51,7 +53,16 @@ jobs:
       - name: Verify portable zip layout
         run: bun run verify:portable
 
+      - name: Upload dry-run artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v5
+        with:
+          name: portable-dry-run-${{ github.run_number }}
+          path: artifacts/FFXIVGearSetup-portable-win-x64-v*.zip
+          retention-days: 7
+
       - name: Upload to GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

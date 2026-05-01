@@ -330,9 +330,11 @@ unzipped to a user-writable location.
 ## Release Workflow
 
 GitHub releases are tag-driven from `.github/workflows/release.yml` on `v*.*.*` tags. The tag
-must match `package.json`'s version. The release job installs Bun + Node 22, runs
-`bun tsc --noEmit`, runs `bun test`, builds the portable ZIP, verifies it with
-`bun run verify:portable`, and uploads `artifacts/FFXIVGearSetup-portable-win-x64-v*.zip`.
+must match `package.json`'s version. The same workflow also supports manual
+`workflow_dispatch` dry runs for testing the Windows build without creating a GitHub Release;
+see `docs/RELEASE.md`. The release job installs Bun + Node 22, runs `bun tsc --noEmit`, runs
+`bun test`, builds the portable ZIP, verifies it with `bun run verify:portable`, and uploads
+`artifacts/FFXIVGearSetup-portable-win-x64-v*.zip`.
 
 Pull requests and pushes to `main` run `.github/workflows/ci.yml`, which installs dependencies,
 type-checks, and runs the Bun test suite.

@@ -13,6 +13,7 @@ The project has two ways to run:
 | Portable zip verifier | `scripts/verify-portable.ts` | `bun run verify:portable` |
 
 Both modes start the same HTTP server. The desktop mode additionally manages the packet capture child process.
+Desktop window position and size are persisted in `data/window-state.json` and restored on the next desktop launch.
 
 ---
 
@@ -56,6 +57,7 @@ src/desktop/index.ts  (parent process — Electrobun desktop entry)
 Browser / UI  ──────────────────────────────────────────────────────────────┐
   GET  /pcap/gear          → returns latest GearSnapshot (or 404)           │
   POST /pcap/gear          → stores incoming GearSnapshot in memory         │
+  GET  /pcap/status        → returns desktop packet-capture status/warnings │
   GET  /pcap/inventory     → returns latest InventorySnapshot (or 404)      │
   POST /pcap/inventory     → stores incoming InventorySnapshot in memory    │
   GET  /item/:id           → fetches item data from XIVAPI (cached)         │
@@ -121,8 +123,11 @@ src/ui/main.tsx  (entry point — built to public/bundle.js via bun build:ui)
   │   ├── SettingsModal.tsx <SettingsModal /> — settingsOpen signal
   │   ├── Titlebar.tsx      <Titlebar /> — custom desktop chrome controls + drag
   │   ├── ResizeHandles.tsx <ResizeHandles /> — 8 invisible edge/corner hit zones
-  │   └── components/
-  │       └── Corners.tsx   <Corners /> — decorative corner spans
+  │
+  ├── components/
+  │   ├── Corners.tsx       <Corners /> — decorative corner spans
+  │   ├── SnapshotStatus.tsx — cached/live snapshot and capture warning status
+  │   └── PcapWarningModal.tsx — manual-refresh capture warning modal
   │
   ├── bis/
   │   ├── catalog.ts        loadCatalog(), addSetFromUrl(), patchSet(),
@@ -205,9 +210,12 @@ src/
 │                              uses frameless titleBarStyle: "hidden" with an
 │                              opaque window background for stable WebView2
 │                              hit-testing on Windows
+│                              restores and saves window bounds via
+│                              data/window-state.json
 │                              requests native DWM rounded corners as a
 │                              best-effort Windows 11 enhancement
-│                              spawns pcap/host.ts as a Node child process
+  │                              spawns pcap/host.ts as a Node child process
+  │                              tracks capture status for renderer warnings
 │
 ├── pcap/
 │   ├── capture.ts           — GearPacketCapture class
@@ -216,6 +224,7 @@ src/
 │   ├── host.ts              — thin runner for GearPacketCapture
 │   │                          depends on: pcap/capture.ts, pcap/materia-data.ts
 │   │                          spawned as a child process by desktop/index.ts
+│   ├── status.ts            — PcapStatus and warning classification helpers
 │   ├── snapshot-cache.ts    — saveGearCache / loadGearCache / saveInventoryCache
 │   │                          / loadInventoryCache / saveJobGearCache / loadJobGearCache
 │   │                          / listJobGearCaches — persists snapshots to data/cache/
@@ -234,7 +243,7 @@ src/
 │   ├── helpers.ts           — json(), notFound() response helpers
 │   └── routes/
 │       ├── window.ts        — POST /window/minimize|maximize|close|setFrame, GET /window/frame
-│       ├── pcap.ts          — GET|POST /pcap/gear|inventory
+│       ├── pcap.ts          — GET|POST /pcap/gear|inventory, GET /pcap/status
 │       │                      GET /pcap/gear-cache, GET /pcap/gear-cache/:classId
 │       │                      POST /pcap/gear-selected
 │       ├── item.ts          — GET /item/:id
@@ -256,6 +265,7 @@ src/
 │   ├── dom.ts               — el(), setStatus() / clearStatus() (write signals), logger
 │   ├── api.ts               — fetchItemData(id); proxies GET /item/:id with in-memory cache
 │   ├── gear-load.ts         — loadGear(); fetches snapshot, resolves item data, updates signals
+│   ├── pcap-status.ts       — polls /pcap/status and maps warnings to UI copy
 │   ├── render/
 │   │   ├── App.tsx          — <App />; TabBar + tab panels + modals; manual-add form signals
 │   │   ├── GearTab.tsx      — <GearTab />; gear card grid; reads snapshot/comparison signals
@@ -263,9 +273,11 @@ src/
 │   │   ├── UpgradesTab.tsx  — <UpgradesTab />; upgrade item grid; loadUpgradeItems()
 │   │   ├── BisTab.tsx       — <SavedSetsTab />; catalog CRUD with inline event handlers
 │   │   ├── CompareModal.tsx — <CompareModal />; slot modal; openCompareModal() / closeModal()
-│   │   ├── SettingsModal.tsx — <SettingsModal />; settingsOpen signal
-│   │   └── components/
-│   │       └── Corners.tsx  — <Corners />; decorative corner spans
+│   │   └── SettingsModal.tsx — <SettingsModal />; settingsOpen signal
+│   ├── components/
+│   │   ├── Corners.tsx     — <Corners />; decorative corner spans
+│   │   ├── SnapshotStatus.tsx — cached/live snapshot and capture warning status
+│   │   └── PcapWarningModal.tsx — manual-refresh capture warning modal
 │   ├── bis/
 │   │   ├── catalog.ts       — loadCatalog(), addSetFromUrl(), patchSet(), refreshBisDropdown()
 │   │   ├── balance.ts       — loadBalanceLinksForModal()
@@ -290,14 +302,17 @@ src/
 
 1. `bun run desktop` → Electrobun launches `src/desktop/index.ts`
 2. `startServer(3000)` starts the HTTP server in-process
-3. A `BrowserWindow` opens pointing to `http://localhost:3000`
-4. If `dist/pcap-host.cjs` is missing, `pcap/host.ts` is compiled to it via `bun build`
-5. `dist/pcap-host.cjs` is spawned as a child process under bundled `runtime/node/node.exe` when present, otherwise `node`
-6. The child process initialises `@ffxiv-teamcraft/pcap-ffxiv` and emits `{ type: "started" }` on success
-7. As the game sends equipment packets, `GearPacketCapture` accumulates `itemInfo` slots and flushes on `containerInfo`
-8. Each `GearSnapshot` is POSTed to `http://localhost:3000/pcap/gear` and stored in `latestPcapGear`
-9. Each `InventorySnapshot` is POSTed to `http://localhost:3000/pcap/inventory` and stored in `latestInventory`
-10. The UI reads `/pcap/gear` and `/pcap/inventory` to drive comparison and acquisition views
+3. `data/window-state.json` is loaded when present
+4. A `BrowserWindow` opens pointing to `http://localhost:3000`
+5. Move/resize events save the latest normal window bounds back to `data/window-state.json`
+6. If `dist/pcap-host.cjs` is missing, `pcap/host.ts` is compiled to it via `bun build`
+7. `dist/pcap-host.cjs` is spawned as a child process under bundled `runtime/node/node.exe` when present, otherwise `node`
+8. The child process initialises `@ffxiv-teamcraft/pcap-ffxiv` and emits `{ type: "started" }` on success
+9. Capture status is exposed at `/pcap/status`; the UI warns if the game was not detected at startup, or if capture started but no network data arrives
+10. As the game sends equipment packets, `GearPacketCapture` accumulates `itemInfo` slots and flushes on `containerInfo`
+11. Each `GearSnapshot` is POSTed to `http://localhost:3000/pcap/gear` and stored in `latestPcapGear`
+12. Each `InventorySnapshot` is POSTed to `http://localhost:3000/pcap/inventory` and stored in `latestInventory`
+13. The UI reads `/pcap/gear` and `/pcap/inventory` to drive comparison and acquisition views
 
 ---
 

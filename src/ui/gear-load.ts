@@ -9,6 +9,7 @@ import {
 } from "./state.ts";
 import { fetchItemData, fetchJson } from "./api.ts";
 import { autoDetectJob, selectJob, runComparison } from "./bis/comparison.ts";
+import { refreshPcapStatus, showPcapRefreshWarningAfterStatusRefresh } from "./pcap-status.ts";
 
 // TODO: add a "lock job" toggle that prevents live pcap from overriding the manual
 // selection. When locked, skip the setManualJobAbbrev(null) call below and keep
@@ -72,12 +73,21 @@ export async function loadGearForClassId(classId: number, abbrev: string): Promi
   if (bisLinkUrl.value) await runComparison();
 }
 
-export async function loadGear(): Promise<void> {
+export interface LoadGearOptions {
+  showCaptureWarningModal?: boolean;
+}
+
+export async function loadGear(options: LoadGearOptions = {}): Promise<void> {
   logger.debug("[app] loadGear called");
   snapshotMeta.value = null;
   setStatus("Fetching gear from packet capture...");
 
+  if (options.showCaptureWarningModal) await showPcapRefreshWarningAfterStatusRefresh();
+  else await refreshPcapStatus();
+
   const result = await fetchJson<GearSnapshot & { fromCache?: boolean }>(`${API_BASE}/pcap/gear`);
+  if (options.showCaptureWarningModal) await showPcapRefreshWarningAfterStatusRefresh();
+  else await refreshPcapStatus();
   if (!result.ok) {
     setStatus(result.error, true);
     return;

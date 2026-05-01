@@ -410,6 +410,22 @@ paths:
                       type: string
                       format: date-time
 
+  /pcap/status:
+    get:
+      tags: [pcap]
+      summary: Get packet capture status
+      description: >
+        Returns desktop packet-capture state used by the UI to explain startup
+        problems. `warning` is set when the game was not detected at capture
+        startup, or when capture started but no network packets have arrived yet.
+      responses:
+        "200":
+          description: Current packet capture status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PcapStatus"
+
   /pcap/gear-cache/{classId}:
     get:
       tags: [pcap]
@@ -898,6 +914,31 @@ components:
           description: Keyed by SlotName
           additionalProperties:
             $ref: "#/components/schemas/EquipmentPiece"
+
+    PcapStatus:
+      type: object
+      required: [phase, updatedAt]
+      properties:
+        phase:
+          type: string
+          enum: [unavailable, starting, capturing, live, game-not-running, error, stopped]
+        updatedAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        lastNetworkAt:
+          type: string
+          format: date-time
+        lastSnapshotAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+        warning:
+          type: string
+          enum: [game-not-running, waiting-for-network]
 
     # ---- BIS -----------------------------------------------------------------
 

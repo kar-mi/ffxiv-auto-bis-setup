@@ -25,8 +25,10 @@ import { CompareModal } from "./CompareModal.tsx";
 import { SettingsModal, settingsOpen } from "./SettingsModal.tsx";
 import { Corners } from "../components/Corners.tsx";
 import { SnapshotStatus } from "../components/SnapshotStatus.tsx";
+import { PcapWarningModal } from "../components/PcapWarningModal.tsx";
 import { Titlebar } from "./Titlebar.tsx";
 import { ResizeHandles } from "./ResizeHandles.tsx";
+import { showPcapRefreshWarningAfterStatusRefresh } from "../pcap-status.ts";
 
 // ---- Sub-tab and manual-add form state (local to this module) ---------------
 
@@ -59,6 +61,12 @@ async function confirmManualAdd(): Promise<void> {
   } finally {
     manualAdding.value = false;
   }
+}
+
+async function refreshUpgradeItems(): Promise<void> {
+  await showPcapRefreshWarningAfterStatusRefresh();
+  await loadUpgradeItems();
+  await showPcapRefreshWarningAfterStatusRefresh();
 }
 
 // ---- Shared tier options ----------------------------------------------------
@@ -132,7 +140,7 @@ function GearTabPanel() {
         </div>
         <button
           class="relative px-4 py-2 text-sm rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors"
-          onClick={() => void loadGear()}
+          onClick={() => void loadGear({ showCaptureWarningModal: true })}
         >
           <Corners />
           Refresh
@@ -401,7 +409,7 @@ function UpgradesTabPanel() {
         <h2 class="font-cinzel text-sm font-semibold text-ffxiv-gold uppercase tracking-wide">Items</h2>
         <button
           class="relative px-3 py-1.5 text-xs rounded bg-ffxiv-panel border border-ffxiv-border text-gray-300 hover:border-ffxiv-gold hover:text-ffxiv-gold transition-colors"
-          onClick={() => void loadUpgradeItems()}
+          onClick={() => void refreshUpgradeItems()}
         >
           <Corners />
           Refresh
@@ -436,6 +444,7 @@ export function App() {
         <AcquisitionTabPanel />
       </div>
       <CompareModal />
+      <PcapWarningModal />
       <SettingsModal />
       <ResizeHandles />
     </>

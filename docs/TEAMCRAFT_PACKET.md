@@ -199,7 +199,7 @@ A separate, non-packet mechanism watches the local `ITEMODR.DAT` files in the FF
 1. Detects filesystem changes via a directory watcher on the `FFXIV_CHR<hex>` folders.
 2. Parses the DAT format by XOR-decoding each field (`XOR8 = 0x73`, `XOR16 = 0x7373`, `XOR32 = 0x73737373`).
 3. Dispatches the parsed order as `dat:item-odr` and `dat:all-odr` IPC events.
-
+ 
 This gives the UI the ability to display items in the same order as the in-game inventory, independent of the packet sniffer.
 
 ---

@@ -319,7 +319,7 @@ src/
 ## Portable Packaging
 
 `bun run package:portable` creates a versioned artifact such as
-`artifacts/FFXIVGearSetup-portable-win-x64-v0.2.1.zip`. The version comes from
+`artifacts/FFXIVGearSetup-portable-win-x64-{v*}.zip`. The version comes from
 `package.json`, which is also read by `electrobun.config.ts` for app metadata.
 
 The script:

@@ -342,12 +342,14 @@ The script:
    `dist/pcap-host.cjs`, a minimal `package.json`, the native capture dependencies, and
    `runtime/node/node.exe`.
 6. Flattens the extracted Electrobun payload into the portable root.
-7. Builds a top-level `FFXIVAutoBIS.exe` launcher with `scripts/build-portable-launcher.ps1`.
+7. Copies `assets/ffxiv-auto-bis.ico` to `Resources/app.ico` and embeds it into
+   `bin/launcher.exe` and `bin/bun.exe` with `rcedit`.
+8. Builds a top-level `FFXIVAutoBIS.exe` launcher with `scripts/build-portable-launcher.ps1`.
    The launcher starts `bin/launcher.exe` with `bin/` as the working directory, matching
    Electrobun's runtime expectations without requiring users to run a command script. The
    launcher embeds `assets/ffxiv-auto-bis.ico`, the same gold diamond mark used by the custom titlebar.
-8. Adds `README.txt` with launch instructions and the generated data/config file locations.
-9. Runs `scripts/verify-portable.ts` to expand the ZIP and assert required files, forbidden
+9. Adds `README.txt` with launch instructions and the generated data/config file locations.
+10. Runs `scripts/verify-portable.ts` to expand the ZIP and assert required files, forbidden
    obsolete files, and README guidance.
 
 The portable app writes runtime data under its own `Resources/app/data/` tree, so it should be

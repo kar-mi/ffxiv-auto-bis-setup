@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body { background: transparent; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+html, body { background: #0d0d0d; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #0d0d0d; }

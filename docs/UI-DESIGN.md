@@ -2,9 +2,9 @@
 
 ## Context
 
-The app currently runs as an Electrobun desktop window using **native Windows chrome** (`titleBarStyle: "default"` in `src/desktop/index.ts:84`). The native bar clashes with the carefully-designed FFXIV-arcane interior — Cinzel + Share Tech Mono on `#0d0d0d`/`#1a1a2e` panels with `#c8a84b` gold accents, decorative corner spans, and a `rounded-xl` shell. The shell's rounded corners and gold border are squared off and partially hidden behind the native titlebar today.
+The app originally ran as an Electrobun desktop window using **native Windows chrome** (`titleBarStyle: "default"` in `src/desktop/index.ts`). The native bar clashed with the FFXIV-arcane interior — Cinzel + Share Tech Mono on `#0d0d0d`/`#1a1a2e` panels with `#c8a84b` gold accents and decorative corner spans.
 
-Goal: replace native window chrome with a custom titlebar + custom resize handles that extend the existing aesthetic. The backend already exposes everything needed (`/window/minimize`, `/window/maximize`, `/window/close`, `/window/setFrame`, `/window/frame`) — only the Electrobun config and frontend are missing.
+Goal: replace native window chrome with a custom titlebar + custom resize handles that extend the existing aesthetic. The backend exposes everything needed (`/window/minimize`, `/window/maximize`, `/window/close`, `/window/setFrame`, `/window/frame`), and the implemented Windows-safe configuration keeps the native window opaque for reliable WebView2 hit-testing.
 
 ## Aesthetic Direction
 
@@ -20,22 +20,27 @@ Extend the existing FFXIV-arcane language; do not introduce a new vocabulary.
   - Maximize button toggles its glyph between a single square and overlapping squares based on a `windowMaximized` signal.
 - **Decorative corner spans**: tiny 4px gold corner accents at the very top-left and top-right of the *titlebar* (not the buttons), opacity 0.4 — echoes `Corners.tsx`.
 
-## Files to Modify
+## Implemented Files
 
-### `src/desktop/index.ts:80-86` — switch to frameless transparent window
+### `src/desktop/index.ts:80-86` — switch to frameless opaque window
 ```ts
 const win = new BrowserWindow({
   title: "FFXIV Gear Setup",
   url: `http://localhost:${SERVER_PORT}`,
   frame: savedState,
   titleBarStyle: "hidden",      // was "default"
-  transparent: true,             // was false
+  transparent: false,
 });
 ```
-This activates the `Titled: false, FullSizeContentView: true` styleMask path in `node_modules/electrobun/dist-win-x64/api/bun/core/BrowserWindow.ts:201-206`.
+This activates the `Titled: false, FullSizeContentView: true` styleMask path in `node_modules/electrobun/dist-win-x64/api/bun/core/BrowserWindow.ts:201-206`. Keep the native window opaque on Windows: `transparent: true` causes WebView2 hit-testing to remain stuck at the original window size after custom `setFrame` resize operations.
 
-### `public/index.html:35` — keep rounded shell, ensure transparent canvas
-The existing `<div id="app-shell" class="... rounded-xl ... border border-ffxiv-border">` is already correct; with `transparent: true` on the BrowserWindow and `background: transparent` already set on `html, body` (`styles.css:5`), the rounded gold-bordered shell will show through cleanly. **No HTML change required** — the titlebar mounts inside `#app-root` via Preact. If a 1px shadow line is desired around the shell, add `shadow-[0_0_0_1px_rgba(200,168,75,0.08)]` to `#app-shell`.
+After creating the window, call `DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND)` as a best-effort Windows 11 native rounding hint. This may be ignored by Windows for heavily customized frameless windows, so the HTML shell must not depend on transparency for its shape.
+
+### `public/index.html:35` — keep the app shell square
+Remove `rounded-xl` from `#app-shell`. With an opaque native window, an inner rounded shell exposes the square native window behind it, creating a visible double-corner artifact. Let DWM own any real outer rounding; if DWM declines, the app should look intentionally square.
+
+### `src/ui/styles.css` — use a dark opaque page backdrop
+With `transparent: false`, the window remains opaque even when DWM rounds the native outer corners. Set `html, body` to the app dark color (`#0d0d0d`) rather than `transparent`; otherwise the opaque native window can show a white fill around the app surface. True desktop-transparent corners are intentionally avoided to preserve reliable WebView2 input on Windows.
 
 ### `src/ui/render/App.tsx:425-439` — add Titlebar + ResizeHandles to the App tree
 Insert `<Titlebar />` above `<TabBar />` and mount `<ResizeHandles />` as a sibling. The existing top-level `flex flex-col` ensures the titlebar sits above the tab bar.
@@ -131,10 +136,9 @@ Exports `startResize(edge: "n"|"s"|"e"|"w"|"nw"|"ne"|"sw"|"se", e: PointerEvent)
 
 ## Documentation Updates
 
-- `docs/WORKFLOW.md` — add a "Window chrome" subsection naming the four new files and noting that the native frame is suppressed via `titleBarStyle: "hidden"` + `transparent: true`.
-- `CLAUDE.md` — update the `src/ui/window/` bullet (currently lists `resize.ts` / `controls.ts` which don't actually exist) to reflect the real file set, and add `Titlebar.tsx` + `ResizeHandles.tsx` under `src/ui/render/`. Update all other docs that aren't in alignment with current flow
-- `openapi.yaml` — already documents `/window/*`; verify completeness and add only if a route is missing.
-- Update all other docs that aren't in alignment with current flow
+- `docs/WORKFLOW.md` names the custom chrome files and notes that the native frame is suppressed via `titleBarStyle: "hidden"` while keeping `transparent: false` for reliable Windows WebView2 hit-testing.
+- `AGENTS.md` should stay in sync with `docs/WORKFLOW.md` whenever custom chrome modules or desktop-window behavior change.
+- `openapi.yaml` already documents `/window/*`; update it only if those routes change.
 
 ## Verification
 
@@ -149,7 +153,7 @@ Exports `startResize(edge: "n"|"s"|"e"|"w"|"nw"|"ne"|"sw"|"se", e: PointerEvent)
    ```
 3. **Visual checks**
    - Native Windows titlebar is gone; custom titlebar shows at the top with diamond emblem and `FFXIV  GEAR  SETUP` text.
-   - Window has rounded corners (transparent corners outside the gold border).
+   - Window is opaque for reliable WebView2 hit-testing. On Windows 11, DWM may round the native outer corners; otherwise the app appears intentionally square with no inner/outer corner mismatch.
    - Three control buttons in the top-right; close button glows red on hover.
    - Decorative corner accents visible at the top-left and top-right of the titlebar.
 4. **Functional checks**
@@ -166,7 +170,9 @@ Exports `startResize(edge: "n"|"s"|"e"|"w"|"nw"|"ne"|"sw"|"se", e: PointerEvent)
 
 | Action | File | Lines |
 |---|---|---|
-| Switch to frameless transparent | `src/desktop/index.ts` | 80–86 |
+| Switch to frameless opaque | `src/desktop/index.ts` | 80–86 |
+| Request native DWM rounded corners | `src/desktop/index.ts` | after BrowserWindow creation |
+| Keep shell square | `public/index.html` | `#app-shell` |
 | Mount titlebar + handles | `src/ui/render/App.tsx` | 425–439 |
 | Append window-chrome CSS | `src/ui/styles.css` | end |
 | Reuse for corner accents | `src/ui/components/Corners.tsx` | whole file |

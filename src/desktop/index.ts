@@ -1,5 +1,5 @@
 import Electrobun, { BrowserWindow } from "electrobun/bun";
-import { dlopen, FFIType } from "bun:ffi";
+import { dlopen, FFIType, ptr } from "bun:ffi";
 import path from "path";
 import { existsSync, writeFileSync } from "fs";
 import { startServer, setWindowControls } from "../server/index.ts";
@@ -74,6 +74,31 @@ function saveWindowState(state: WindowState): void {
   }
 }
 
+function applyRoundedWindowCorners(): void {
+  try {
+    const dwmapi = dlopen("dwmapi", {
+      DwmSetWindowAttribute: {
+        args: [FFIType.ptr, FFIType.i32, FFIType.ptr, FFIType.u32],
+        returns: FFIType.i32,
+      },
+    });
+    const DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    const DWMWCP_ROUND = 2;
+    const preference = new Uint32Array([DWMWCP_ROUND]);
+    const hr = dwmapi.symbols.DwmSetWindowAttribute(
+      win.ptr,
+      DWMWA_WINDOW_CORNER_PREFERENCE,
+      ptr(preference),
+      preference.byteLength,
+    );
+    if (hr !== 0) {
+      console.warn(`[window] DwmSetWindowAttribute corner preference failed: 0x${(hr >>> 0).toString(16)}`);
+    }
+  } catch (e) {
+    console.warn("[window] Could not request rounded native corners:", e);
+  }
+}
+
 const savedState = loadWindowState();
 
 // Open the desktop window
@@ -84,6 +109,7 @@ const win = new BrowserWindow({
   titleBarStyle: "hidden",
   transparent: false,
 });
+applyRoundedWindowCorners();
 
 // Persist window position/size on move or resize (debounced).
 // Track last known frame so the close handler doesn't call getFrame() on a

@@ -131,8 +131,9 @@ src/ui/main.tsx  (entry point — built to public/bundle.js via bun build:ui)
       ├── resize.ts         startMove(), startResize() — pointer-event custom chrome
       └── controls.ts       close/minimize/maximize/setFrame HTTP wrappers
 
-public/index.html  (<div id="app-root"> mount inside the framed app shell)
-public/styles.css  (corner decoration + modal animations)
+public/index.html  (<div id="app-root"> mount inside the square app shell;
+                    native DWM owns any real outer corner rounding)
+public/styles.css  (generated; dark page backdrop, corner decoration + modal animations)
 public/bundle.js   (built output — gitignored)
 ```
 
@@ -200,6 +201,8 @@ src/
 │                              uses frameless titleBarStyle: "hidden" with an
 │                              opaque window background for stable WebView2
 │                              hit-testing on Windows
+│                              requests native DWM rounded corners as a
+│                              best-effort Windows 11 enhancement
 │                              spawns pcap/host.ts as a Node child process
 │
 ├── pcap/
@@ -243,6 +246,8 @@ src/
 │   ├── main.tsx             — entry point; mounts <App />, calls loadCatalog + loadGear
 │   ├── constants.ts         — SLOT_LABELS, JOBS, LEFT/RIGHT_SLOTS, API_BASE
 │   ├── types.ts             — frontend-only interfaces (UpgradeItemsResponse, UpgradeItemEntry)
+│   ├── styles.css           — Tailwind source; #0d0d0d page backdrop avoids white
+│   │                          fill around the opaque frameless desktop surface
 │   ├── state.ts             — @preact/signals signals + state{} compat shim + mergedItemDataMap()
 │   ├── dom.ts               — el(), setStatus() / clearStatus() (write signals), logger
 │   ├── api.ts               — fetchItemData(id); proxies GET /item/:id with in-memory cache
@@ -384,5 +389,4 @@ interface LocalBisEntry {
 ```
 
 ---
-
 ## What's Not Yet Implemented

@@ -22,6 +22,8 @@ tags:
     description: Gear vs BIS comparison
   - name: window
     description: Desktop window controls (Electrobun only)
+  - name: settings
+    description: Locally persisted app defaults
 
 paths:
 
@@ -50,6 +52,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ItemData"
+
+  # ---------------------------------------------------------------------------
+  # Settings
+  # ---------------------------------------------------------------------------
+
+  /settings:
+    get:
+      tags: [settings]
+      summary: Get app settings
+      description: >
+        Returns persisted UI defaults. Missing or invalid settings fall back to
+        built-in defaults. Settings are stored in `data/settings.json`.
+      responses:
+        "200":
+          description: App settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+    put:
+      tags: [settings]
+      summary: Update app settings
+      description: Persists app defaults such as the opening tab.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppSettings"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   # ---------------------------------------------------------------------------
   # Packet capture
@@ -840,6 +880,16 @@ components:
       properties:
         error:
           type: string
+
+    AppSettings:
+      type: object
+      required: [defaultTab]
+      properties:
+        defaultTab:
+          type: string
+          enum: [gear, bis, upgrades, acquisition]
+          description: Tab selected when the UI starts.
+          example: gear
 
     UpgradeItem:
       type: object

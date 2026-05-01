@@ -13,7 +13,8 @@ The project has two ways to run:
 | Portable zip verifier | `scripts/verify-portable.ts` | `bun run verify:portable` |
 
 Both modes start the same HTTP server. The desktop mode additionally manages the packet capture child process.
-Desktop window position and size are persisted in `data/window-state.json` and restored on the next desktop launch.
+Desktop app settings are persisted in `data/settings.json`; window position and size are persisted in
+`data/window-state.json` and restored on the next desktop launch.
 
 ---
 
@@ -73,6 +74,7 @@ Browser / UI  ──────────────────────
   POST /bis/catalog/sets   → fetches + saves a BIS set to the catalog       │
   PATCH/DELETE /bis/catalog/sets/:id   → update or remove a catalog entry   │
   PUT/DELETE /bis/catalog/preferences/:job  → set or clear job preference   │
+  GET/PUT /settings        → load/save app defaults in data/settings.json    │
   GET  /debug/inventory    → inventory grouped/sorted by ITEMODR.DAT order  │
   POST /window/minimize    → window controls (desktop mode only)            │
   GET  /*                  → serves public/* (static files)                 │
@@ -83,6 +85,7 @@ src/server/index.ts  (Bun.serve — async startServer())                      �
   - latestInventory: InventorySnapshot | null (in-memory; resets on restart)│
   - awaits cache restore before first request (no startup race)             │
   - BIS catalog persisted to data/bis/catalog.json                          │
+  - App settings persisted to data/settings.json                            │
   - routes delegated to src/server/routes/*                                 │
         │                                                                    │
         └────────────────────────────────────────────────────────────────────┘
@@ -93,7 +96,7 @@ src/server/index.ts  (Bun.serve — async startServer())                      �
 ```
 src/ui/main.tsx  (entry point — built to public/bundle.js via bun build:ui)
   │   render(<App />, #app-root)
-  │   loadCatalog(), loadGear()
+  │   loadSettings(), loadCatalog(), loadGear()
   │
   ├── state.ts              @preact/signals — all reactive state
   │                         signals: currentSnapshot, comparisonData, bisLinkEntries,
@@ -107,6 +110,7 @@ src/ui/main.tsx  (entry point — built to public/bundle.js via bun build:ui)
   │                         calls autoDetectJob → runComparison if a BIS set is selected
   │
   ├── api.ts                fetchItemData() — proxies GET /item/:id (process-lifetime cache)
+  ├── settings.ts           loadSettings(), saveSettings(); appSettings signal
   ├── constants.ts          SLOT_LABELS, JOBS, LEFT/RIGHT_SLOTS, API_BASE
   ├── dom.ts                el(), setStatus() → statusMsg signal, clearStatus(), logger
   ├── types.ts              UpgradeItemsResponse, UpgradeItemEntry (frontend-only shapes)
@@ -181,6 +185,10 @@ src/
 │   ├── local-store.ts       — BisCatalog CRUD persisted to data/bis/catalog.json
 │   │                          loadCatalog, saveCatalog, upsertSet, removeSet,
 │   │                          setPreference, clearPreference, makeEntryId, canonicalUrl
+│
+├── settings/
+│   └── store.ts             — AppSettings CRUD persisted to data/settings.json
+│                              loadSettings, saveSettings, normalizeSettings
 │   ├── multiset.ts          — multisetEquals(a, b) — order-independent array comparison
 │   ├── needs.ts             — computeNeeds(comparison, bis, inventory) → GearNeeds
 │   └── xivgear.ts           — fetchBisSet(url, setIndex) → BisGearSet
@@ -253,10 +261,11 @@ src/
 │       │                      PUT|DELETE /bis/catalog/preferences/:job
 │       │                      GET /bis/full, GET /needs, GET /compare
 │       ├── acquisition.ts   — GET /acquisition, GET /upgrade-items
+│       ├── settings.ts      — GET|PUT /settings
 │       └── debug.ts         — GET /debug/inventory
 │
 ├── ui/                      — frontend TypeScript; built to public/bundle.js
-│   ├── main.tsx             — entry point; mounts <App />, calls loadCatalog + loadGear
+│   ├── main.tsx             — entry point; loads settings, mounts <App />, calls loadCatalog + loadGear
 │   ├── constants.ts         — SLOT_LABELS, JOBS, LEFT/RIGHT_SLOTS, API_BASE
 │   ├── types.ts             — frontend-only interfaces (UpgradeItemsResponse, UpgradeItemEntry)
 │   ├── styles.css           — Tailwind source; #0d0d0d page backdrop avoids white
@@ -264,6 +273,7 @@ src/
 │   ├── state.ts             — @preact/signals signals + state{} compat shim + mergedItemDataMap()
 │   ├── dom.ts               — el(), setStatus() / clearStatus() (write signals), logger
 │   ├── api.ts               — fetchItemData(id); proxies GET /item/:id with in-memory cache
+│   ├── settings.ts          — appSettings signal + GET/PUT /settings wrappers
 │   ├── gear-load.ts         — loadGear(); fetches snapshot, resolves item data, updates signals
 │   ├── pcap-status.ts       — polls /pcap/status and maps warnings to UI copy
 │   ├── render/
@@ -273,7 +283,7 @@ src/
 │   │   ├── UpgradesTab.tsx  — <UpgradesTab />; upgrade item grid; loadUpgradeItems()
 │   │   ├── BisTab.tsx       — <SavedSetsTab />; catalog CRUD with inline event handlers
 │   │   ├── CompareModal.tsx — <CompareModal />; slot modal; openCompareModal() / closeModal()
-│   │   └── SettingsModal.tsx — <SettingsModal />; settingsOpen signal
+│   │   └── SettingsModal.tsx — <SettingsModal />; app default controls + settingsOpen signal
 │   ├── components/
 │   │   ├── Corners.tsx     — <Corners />; decorative corner spans
 │   │   ├── SnapshotStatus.tsx — cached/live snapshot and capture warning status
@@ -334,7 +344,8 @@ The script:
 6. Flattens the extracted Electrobun payload into the portable root.
 7. Builds a top-level `FFXIVAutoBIS.exe` launcher with `scripts/build-portable-launcher.ps1`.
    The launcher starts `bin/launcher.exe` with `bin/` as the working directory, matching
-   Electrobun's runtime expectations without requiring users to run a command script.
+   Electrobun's runtime expectations without requiring users to run a command script. The
+   launcher embeds `assets/ffxiv-auto-bis.ico`, the same gold diamond mark used by the custom titlebar.
 8. Adds `README.txt` with launch instructions and the generated data/config file locations.
 9. Runs `scripts/verify-portable.ts` to expand the ZIP and assert required files, forbidden
    obsolete files, and README guidance.

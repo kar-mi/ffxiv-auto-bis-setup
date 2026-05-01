@@ -43,8 +43,9 @@ export async function addSetFromUrl(url: string, raidTier: string, setDefault: b
     throw new Error(err?.error ?? `HTTP ${res.status}`);
   }
   const entry = await res.json() as LocalBisEntry;
-  if (setDefault && currentJobAbbrev.value) {
-    await fetch(`${API_BASE}/bis/catalog/preferences/${encodeURIComponent(currentJobAbbrev.value)}`, {
+  const preferenceJob = entry.set.job || currentJobAbbrev.value;
+  if (setDefault && preferenceJob) {
+    await fetch(`${API_BASE}/bis/catalog/preferences/${encodeURIComponent(preferenceJob)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: entry.id }),

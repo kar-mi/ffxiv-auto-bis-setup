@@ -38,6 +38,7 @@ const forbiddenPaths = [
 const requiredReadmeText = [
   `Version ${packageVersion}`,
   'Run "FFXIVAutoBIS.exe"',
+  "Resources\\app\\data\\settings.json",
   "Resources\\app\\data\\window-state.json",
   "Resources\\app\\data\\bis\\catalog.json",
   "Resources\\app\\data\\cache\\",

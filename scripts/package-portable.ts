@@ -179,6 +179,7 @@ async function seedTopLevelLaunchers(): Promise<void> {
       "Keep the extracted files together in a user-writable location; saved settings and live capture data write back into this folder.",
       "",
       "Generated files:",
+      "- App settings: Resources\\app\\data\\settings.json",
       "- Window size/position: Resources\\app\\data\\window-state.json",
       "- Saved BIS sets/preferences: Resources\\app\\data\\bis\\catalog.json",
       "- Gear and inventory cache: Resources\\app\\data\\cache\\",

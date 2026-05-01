@@ -82,7 +82,7 @@ const win = new BrowserWindow({
   url: `http://localhost:${SERVER_PORT}`,
   frame: savedState,
   titleBarStyle: "hidden",
-  transparent: true,
+  transparent: false,
 });
 
 // Persist window position/size on move or resize (debounced).

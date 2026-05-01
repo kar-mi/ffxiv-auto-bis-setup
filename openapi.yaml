@@ -4,7 +4,7 @@ info:
   description: >
     Compares a character's packet-captured gear against Best-In-Slot (BIS)
     recommendations sourced from The Balance FFXIV and xivgear.app.
-  version: 0.1.0
+  version: 0.2.1
 
 servers:
   - url: http://localhost:3000

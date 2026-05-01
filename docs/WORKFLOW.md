@@ -10,6 +10,7 @@ The project has two ways to run:
 | Electrobun desktop app | `src/desktop/index.ts` | `bun run desktop` |
 | Stable desktop payload | `src/desktop/index.ts` | `bun run desktop:build:stable` |
 | Windows portable zip | `scripts/package-portable.ts` | `bun run package:portable` |
+| Portable zip verifier | `scripts/verify-portable.ts` | `bun run verify:portable` |
 
 Both modes start the same HTTP server. The desktop mode additionally manages the packet capture child process.
 
@@ -302,7 +303,9 @@ src/
 
 ## Portable Packaging
 
-`bun run package:portable` creates `artifacts/FFXIVGearSetup-portable-win-x64.zip`.
+`bun run package:portable` creates a versioned artifact such as
+`artifacts/FFXIVGearSetup-portable-win-x64-v0.2.1.zip`. The version comes from
+`package.json`, which is also read by `electrobun.config.ts` for app metadata.
 
 The script:
 
@@ -318,9 +321,21 @@ The script:
    The launcher starts `bin/launcher.exe` with `bin/` as the working directory, matching
    Electrobun's runtime expectations without requiring users to run a command script.
 8. Adds `README.txt` with launch instructions and the generated data/config file locations.
+9. Runs `scripts/verify-portable.ts` to expand the ZIP and assert required files, forbidden
+   obsolete files, and README guidance.
 
 The portable app writes runtime data under its own `Resources/app/data/` tree, so it should be
 unzipped to a user-writable location.
+
+## Release Workflow
+
+GitHub releases are tag-driven from `.github/workflows/release.yml` on `v*.*.*` tags. The tag
+must match `package.json`'s version. The release job installs Bun + Node 22, runs
+`bun tsc --noEmit`, runs `bun test`, builds the portable ZIP, verifies it with
+`bun run verify:portable`, and uploads `artifacts/FFXIVGearSetup-portable-win-x64-v*.zip`.
+
+Pull requests and pushes to `main` run `.github/workflows/ci.yml`, which installs dependencies,
+type-checks, and runs the Bun test suite.
 
 ---
 

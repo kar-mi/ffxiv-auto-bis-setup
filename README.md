@@ -8,6 +8,10 @@ An app that compares a character's equipped gear against Best-In-Slot (BIS) reco
 bun install
 ```
 
+## Platform Support
+
+The packaged desktop app is Windows x64 portable-first. Live FFXIV packet capture depends on the Windows game client and native capture dependencies, so macOS/Linux builds are not currently targeted.
+
 ## Running
 
 | Mode | Command | Description |
@@ -33,6 +37,17 @@ bun run watch:css       # Rebuild CSS on file change
 bun test                # Run test suite
 bun tsc --noEmit        # Type-check all source files
 ```
+
+## Releases
+
+Releases are built from tags matching `vMAJOR.MINOR.PATCH`. The tag must match `package.json`'s `version`; the release workflow type-checks, runs tests, builds the portable package, verifies the ZIP layout, and uploads a versioned artifact named like `FFXIVGearSetup-portable-win-x64-v0.2.1.zip`.
+
+```bash
+bun run package:portable # Build and verify the Windows portable ZIP
+bun run verify:portable  # Re-run portable ZIP layout verification
+```
+
+Release history is tracked in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Data Sources
 

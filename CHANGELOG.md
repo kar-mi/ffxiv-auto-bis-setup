@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 This project follows a lightweight [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) style. Release tags use `vMAJOR.MINOR.PATCH` and should match `package.json`.
 
+## [0.2.3] - 2026-05-01
+
+### Added
+- Bundled materia resolution data for portable releases.
+
+### Fixed
+- Portable release builds now keep required materia data in the packaged app.
+- Release and CI workflow build issues from the `0.2.2` release follow-up.
+
 ## [0.2.2] - 2026-05-01
 
 ### Added

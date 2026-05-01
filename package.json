@@ -1,6 +1,6 @@
 {
   "name": "ffxiv_gear_setup",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "module": "src/server/index.ts",
   "type": "module",
   "scripts": {

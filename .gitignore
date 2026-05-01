@@ -35,6 +35,7 @@ CLAUDE.md
 *.claude
 
 build/*
+artifacts/*
 
 # Frontend bundle + generated CSS
 public/bundle.js

@@ -5,7 +5,7 @@
   "scripts": {
     "start": "bun run src/server/index.ts",
     "desktop": "electrobun dev",
-    "desktop:build": "electrobun build canary",
+    "desktop:build": "electrobun build --env=canary",
     "build": "bun run build:ui",
     "build:css": "tailwindcss -i ./src/ui/styles.css -o ./public/styles.css --minify",
     "watch:css": "tailwindcss -i ./src/ui/styles.css -o ./public/styles.css --watch",

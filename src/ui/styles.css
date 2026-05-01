@@ -53,6 +53,23 @@ html, body { background: transparent; margin: 0; padding: 0; width: 100%; height
 .gear-card[data-status="wrong-item"],
 .gear-card[data-status="missing"]       { border-color: rgba(220,38,38,0.6);   box-shadow: 0 0 10px rgba(220,38,38,0.15); }
 
+/* ---- Window chrome ---- */
+.titlebar { user-select: none; }
+
+/* ---- Resize handles ---- */
+.resize-handle { position: fixed; z-index: 1000; -webkit-app-region: no-drag; }
+.resize-edge-n, .resize-edge-s { left: 6px; right: 6px; height: 6px; cursor: ns-resize; }
+.resize-edge-e, .resize-edge-w { top: 6px; bottom: 6px; width: 6px; cursor: ew-resize; }
+.resize-edge-n { top: 0; }
+.resize-edge-s { bottom: 0; }
+.resize-edge-e { right: 0; }
+.resize-edge-w { left: 0; }
+.resize-corner { width: 12px; height: 12px; }
+.resize-corner-nw { top: 0; left: 0; cursor: nwse-resize; }
+.resize-corner-ne { top: 0; right: 0; cursor: nesw-resize; }
+.resize-corner-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.resize-corner-se { bottom: 0; right: 0; cursor: nwse-resize; }
+
 /* ---- Animations ---- */
 @keyframes cardReveal {
   from { opacity: 0; transform: translateY(3px); }

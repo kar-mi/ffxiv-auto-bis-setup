@@ -81,8 +81,8 @@ const win = new BrowserWindow({
   title: "FFXIV Gear Setup",
   url: `http://localhost:${SERVER_PORT}`,
   frame: savedState,
-  titleBarStyle: "default",
-  transparent: false,
+  titleBarStyle: "hidden",
+  transparent: true,
 });
 
 // Persist window position/size on move or resize (debounced).

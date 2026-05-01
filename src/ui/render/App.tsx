@@ -25,6 +25,8 @@ import { CompareModal } from "./CompareModal.tsx";
 import { SettingsModal, settingsOpen } from "./SettingsModal.tsx";
 import { Corners } from "../components/Corners.tsx";
 import { SnapshotStatus } from "../components/SnapshotStatus.tsx";
+import { Titlebar } from "./Titlebar.tsx";
+import { ResizeHandles } from "./ResizeHandles.tsx";
 
 // ---- Sub-tab and manual-add form state (local to this module) ---------------
 
@@ -425,6 +427,7 @@ function AcquisitionTabPanel() {
 export function App() {
   return (
     <>
+      <Titlebar />
       <TabBar />
       <div class="flex-1 overflow-y-auto pb-2">
         <GearTabPanel />
@@ -434,6 +437,7 @@ export function App() {
       </div>
       <CompareModal />
       <SettingsModal />
+      <ResizeHandles />
     </>
   );
 }

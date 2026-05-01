@@ -9,6 +9,8 @@ const GAME_NOT_RUNNING_REFRESH_MESSAGE =
   "Network data is unavailable because FFXIV was not detected when packet capture started. Close this app, open FFXIV, log in to your character, then reopen this app before refreshing again.";
 const WAITING_FOR_NETWORK_MESSAGE =
   "FFXIV was open when capture started, but no network data has arrived yet. Change areas or teleport once, then refresh.";
+const NO_LIVE_CAPTURE_REFRESH_MESSAGE =
+  "No live network data is available yet. If FFXIV was closed when this app opened, close this app, open FFXIV, log in to your character, then reopen this app. If FFXIV was already open, change areas or teleport once, then refresh.";
 
 export function pcapWarningMessage(status: PcapStatus | null): string | null {
   if (!status?.warning) return null;
@@ -35,7 +37,24 @@ export function showPcapRefreshWarning(): void {
     return;
   }
   const warning = pcapImmediateWarningMessage(pcapStatus.value);
-  if (warning) pcapWarningModalMsg.value = warning;
+  if (warning) {
+    pcapWarningModalMsg.value = warning;
+    return;
+  }
+  const status = pcapStatus.value;
+  if (
+    status &&
+    status.phase !== "live" &&
+    !status.lastNetworkAt &&
+    !status.lastSnapshotAt
+  ) {
+    pcapWarningModalMsg.value = NO_LIVE_CAPTURE_REFRESH_MESSAGE;
+  }
+}
+
+export async function showPcapRefreshWarningAfterStatusRefresh(): Promise<void> {
+  await refreshPcapStatus();
+  showPcapRefreshWarning();
 }
 
 export async function refreshPcapStatus(): Promise<void> {

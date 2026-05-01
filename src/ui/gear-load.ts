@@ -9,7 +9,7 @@ import {
 } from "./state.ts";
 import { fetchItemData, fetchJson } from "./api.ts";
 import { autoDetectJob, selectJob, runComparison } from "./bis/comparison.ts";
-import { refreshPcapStatus, showPcapRefreshWarning } from "./pcap-status.ts";
+import { refreshPcapStatus, showPcapRefreshWarningAfterStatusRefresh } from "./pcap-status.ts";
 
 // TODO: add a "lock job" toggle that prevents live pcap from overriding the manual
 // selection. When locked, skip the setManualJobAbbrev(null) call below and keep
@@ -82,12 +82,12 @@ export async function loadGear(options: LoadGearOptions = {}): Promise<void> {
   snapshotMeta.value = null;
   setStatus("Fetching gear from packet capture...");
 
-  await refreshPcapStatus();
-  if (options.showCaptureWarningModal) showPcapRefreshWarning();
+  if (options.showCaptureWarningModal) await showPcapRefreshWarningAfterStatusRefresh();
+  else await refreshPcapStatus();
 
   const result = await fetchJson<GearSnapshot & { fromCache?: boolean }>(`${API_BASE}/pcap/gear`);
-  await refreshPcapStatus();
-  if (options.showCaptureWarningModal) showPcapRefreshWarning();
+  if (options.showCaptureWarningModal) await showPcapRefreshWarningAfterStatusRefresh();
+  else await refreshPcapStatus();
   if (!result.ok) {
     setStatus(result.error, true);
     return;

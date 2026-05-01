@@ -86,7 +86,6 @@ src/server/index.ts  (Bun.serve — async startServer())                      �
 
 ```
 src/ui/main.tsx  (entry point — built to public/bundle.js via bun build:ui)
-  │   initWindowControls(), initResize()
   │   render(<App />, #app-root)
   │   loadCatalog(), loadGear()
   │
@@ -116,6 +115,8 @@ src/ui/main.tsx  (entry point — built to public/bundle.js via bun build:ui)
   │   ├── CompareModal.tsx  <CompareModal /> — reads selectedSlot signal
   │   │                     openCompareModal(slot), closeModal()
   │   ├── SettingsModal.tsx <SettingsModal /> — settingsOpen signal
+  │   ├── Titlebar.tsx      <Titlebar /> — custom desktop chrome controls + drag
+  │   ├── ResizeHandles.tsx <ResizeHandles /> — 8 invisible edge/corner hit zones
   │   └── components/
   │       └── Corners.tsx   <Corners /> — decorative corner spans
   │
@@ -127,11 +128,10 @@ src/ui/main.tsx  (entry point — built to public/bundle.js via bun build:ui)
   │                         clearComparison()
   │
   └── window/
-      ├── resize.ts         initResize() — pointer-event window resize handles
-      └── controls.ts       initWindowControls() — close/minimize/maximize;
-                            btn-settings → settingsOpen signal
+      ├── resize.ts         startMove(), startResize() — pointer-event custom chrome
+      └── controls.ts       close/minimize/maximize/setFrame HTTP wrappers
 
-public/index.html  (titlebar + resize handles + <div id="app-root">; Tailwind CDN)
+public/index.html  (<div id="app-root"> mount inside the framed app shell)
 public/styles.css  (corner decoration + modal animations)
 public/bundle.js   (built output — gitignored)
 ```
@@ -197,6 +197,9 @@ src/
 ├── desktop/
 │   └── index.ts             — Electrobun desktop entry
 │                              depends on: server/index.ts (startServer)
+│                              uses frameless titleBarStyle: "hidden" with an
+│                              opaque window background for stable WebView2
+│                              hit-testing on Windows
 │                              spawns pcap/host.ts as a Node child process
 │
 ├── pcap/
@@ -259,8 +262,8 @@ src/
 │   │   ├── balance.ts       — loadBalanceLinksForModal()
 │   │   └── comparison.ts    — runComparison(), autoDetectJob(), clearComparison()
 │   └── window/
-│       ├── resize.ts        — initResize(); pointer-event window resize handles
-│       └── controls.ts      — initWindowControls(); close/minimize/maximize/settings
+│       ├── resize.ts        — startMove(), startResize(); pointer-event custom chrome
+│       └── controls.ts      — close/minimize/maximize/setFrame wrappers
 │
 ├── util/
 │   └── atomic-write.ts      — writeJsonAtomic(absPath, value)
